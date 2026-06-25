@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jornada do Nascimento - Super Futebol RPG</title>
+    <title>Rumo ao Estrelato - Super Futebol RPG</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,7 +17,43 @@
 
     <div class="app-container">
         <header class="app-header">
-            <h1 id="app-title">Carreira</h1>
+            <h1 id="app-title" data-i18n="appTitle">Rumo ao Estrelato</h1>
+            <div class="language-dropdown" id="languageDropdown">
+                <button class="dropdown-trigger" id="langDropdownTrigger" title="Mudar Idioma">
+                    <svg class="global-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                    <span class="lang-name-long">Português</span>
+                    <span class="lang-name-short">PT</span>
+                    <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <div class="dropdown-menu" id="langDropdownMenu">
+                    <button class="dropdown-item active" data-lang="pt">
+                        <span class="lang-badge">PT</span>
+                        <span>Português</span>
+                    </button>
+                    <button class="dropdown-item" data-lang="en">
+                        <span class="lang-badge">EN</span>
+                        <span>English</span>
+                    </button>
+                    <button class="dropdown-item" data-lang="es">
+                        <span class="lang-badge">ES</span>
+                        <span>Español</span>
+                    </button>
+                    <button class="dropdown-item" data-lang="ja">
+                        <span class="lang-badge">JA</span>
+                        <span>日本語</span>
+                    </button>
+                    <button class="dropdown-item" data-lang="zh">
+                        <span class="lang-badge">ZH</span>
+                        <span>简体中文</span>
+                    </button>
+                </div>
+            </div>
             <p id="app-subtitle" class="app-subtitle">Etapa 1: Gire a roleta para descobrir em qual continente você irá nascer!</p>
         </header>
 
@@ -131,9 +167,9 @@
                 
                 <!-- Navegação por Abas -->
                 <div class="sidebar-tabs">
-                    <button class="tab-btn active" data-tab="tab-stats">📋 Atributos</button>
-                    <button class="tab-btn" data-tab="tab-timeline">📈 Carreira</button>
-                    <button class="tab-btn" data-tab="tab-references">📊 Tabelas</button>
+                    <button class="tab-btn active" data-tab="tab-stats" data-i18n="tabStats">📋 Atributos</button>
+                    <button class="tab-btn" data-tab="tab-timeline" data-i18n="tabTimeline">📈 Carreira</button>
+                    <button class="tab-btn" data-tab="tab-references" data-i18n="tabReferences">📊 Tabelas</button>
                 </div>
                 
                 <!-- Aba 1: Estatísticas e Atributos -->
@@ -452,14 +488,14 @@
                     </div>
                 </div>
                 
-                <button id="resetJourneyBtn" class="btn-secondary" disabled style="margin-top: 0.4rem;">
+                <button id="resetJourneyBtn" class="btn-secondary" disabled style="margin-top: 0.4rem;" data-i18n="resetJourneyBtn">
                     Reiniciar Jornada
                 </button>
             </div>
         </div>
 
         <footer class="app-footer">
-            <p>Jornada do Nascimento © 2026. O mais completo simulador RPG de carreira futebolística.</p>
+            <p id="footer-text">Rumo ao Estrelato © 2026. O mais completo simulador RPG de carreira futebolística.</p>
         </footer>
     </div>
 
@@ -467,10 +503,10 @@
     <div id="resultModal" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="modal-header">
-                <span class="modal-badge">Biografia Declarada</span>
+                <span class="modal-badge" data-i18n="modalBadge">Biografia Declarada</span>
             </div>
             <div class="modal-body">
-                <p class="modal-lead">Parabéns! Sua carreira lendária foi traçada:</p>
+                <p class="modal-lead" data-i18n="modalLead">Parabéns! Sua carreira lendária foi traçada:</p>
                 
                 <div class="final-presentation">
                     <!-- Column for the FUT Player Card -->
@@ -480,107 +516,100 @@
                     
                     <!-- Column for the detailed stats and biography -->
                     <div class="info-column">
-                        <!-- Modal Navigation Tabs -->
-                        <div class="modal-tabs">
-                            <button class="modal-tab-btn active" id="modalTabBio" data-modal-tab="modal-bio">📖 História</button>
-                            <button class="modal-tab-btn" id="modalTabTrophies" data-modal-tab="modal-trophies">🏆 Clubes/Seleção e Títulos</button>
-                        </div>
-                        
-                        <!-- Modal Tab 1: Biography & Stats -->
-                        <div class="modal-tab-content" id="modalContentBio">
-                            <!-- Expanded 18-item Summary Grid -->
-                            <div class="summary-card">
-                                <div class="summary-grid">
-                                    <div class="summary-item">
-                                        <span class="summary-label">Continente</span>
-                                        <span id="summaryContinent" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">País Natal</span>
-                                        <span id="summaryCountry" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Altura</span>
-                                        <span id="summaryHeight" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Estreou Pro</span>
-                                        <span id="summaryAge" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Posição</span>
-                                        <span id="summaryPosition" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Velocidade</span>
-                                        <span id="summarySpeed" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Finalização</span>
-                                        <span id="summaryFinishing" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Drible</span>
-                                        <span id="summaryDribbling" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Passe</span>
-                                        <span id="summaryPassing" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Força</span>
-                                        <span id="summaryStrength" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Defesa</span>
-                                        <span id="summaryDefending" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Temporadas</span>
-                                        <span id="summarySeasons" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Clubes</span>
-                                        <span id="summaryClubs" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Seleção</span>
-                                        <span id="summarySelection" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Copa do Mundo</span>
-                                        <span id="summaryWorldCup" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Continental (Sel.)</span>
-                                        <span id="summaryContinentalSelection" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Gols & Assistências</span>
-                                        <span id="summaryStats" class="summary-val">-</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Bolas de Ouro</span>
-                                        <span id="summaryBallonDor" class="summary-val">-</span>
-                                    </div>
+                        <h4 class="section-title" id="sectionTitleSummary" data-i18n="sectionTitleSummary">📋 Atributos & Biografia</h4>
+                        <!-- Expanded 18-item Summary Grid -->
+                        <div class="summary-card">
+                            <div class="summary-grid">
+                                <div class="summary-item">
+                                    <span class="summary-label">Continente</span>
+                                    <span id="summaryContinent" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">País Natal</span>
+                                    <span id="summaryCountry" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Altura</span>
+                                    <span id="summaryHeight" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Estreou Pro</span>
+                                    <span id="summaryAge" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Posição</span>
+                                    <span id="summaryPosition" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Velocidade</span>
+                                    <span id="summarySpeed" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Finalização</span>
+                                    <span id="summaryFinishing" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Drible</span>
+                                    <span id="summaryDribbling" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Passe</span>
+                                    <span id="summaryPassing" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Força</span>
+                                    <span id="summaryStrength" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Defesa</span>
+                                    <span id="summaryDefending" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Temporadas</span>
+                                    <span id="summarySeasons" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Clubes</span>
+                                    <span id="summaryClubs" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Seleção</span>
+                                    <span id="summarySelection" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Copa do Mundo</span>
+                                    <span id="summaryWorldCup" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Continental (Sel.)</span>
+                                    <span id="summaryContinentalSelection" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Gols & Assistências</span>
+                                    <span id="summaryStats" class="summary-val">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Bolas de Ouro</span>
+                                    <span id="summaryBallonDor" class="summary-val">-</span>
                                 </div>
                             </div>
+                        </div>
 
-                            <div class="story-box">
-                                <p id="destinyStory">Carregando sua história de destino...</p>
-                            </div>
+                        <div class="story-box">
+                            <p id="destinyStory">Carregando sua história de destino...</p>
                         </div>
-                        
-                        <!-- Modal Tab 2: Detailed Trophies -->
-                        <div class="modal-tab-content hidden" id="modalContentTrophies">
-                            <div id="modalTrophiesGallery"></div>
-                        </div>
+                    </div>
+                    
+                    <!-- Column for the clubs, selection and trophies -->
+                    <div class="trophies-column">
+                        <h4 class="section-title" id="sectionTitleTrophies" data-i18n="sectionTitleTrophies">🏆 Clubes, Seleção & Títulos</h4>
+                        <div id="modalTrophiesGallery"></div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer" style="display: flex; gap: 1rem; width: 100%; margin-top: 1rem;">
-                <button id="viewJourneyBtn" class="btn-primary" style="flex: 1; margin: 0;">Ver Trajetória</button>
-                <button id="closeModalBtn" class="btn-secondary" style="flex: 1; margin: 0; padding: 0.85rem 1.8rem; border-radius: 10px;">Nova Carreira</button>
+                <button id="viewJourneyBtn" class="btn-primary" style="flex: 1; margin: 0;" data-i18n="viewJourneyBtn">Ver Trajetória</button>
+                <button id="closeModalBtn" class="btn-secondary" style="flex: 1; margin: 0; padding: 0.85rem 1.8rem; border-radius: 10px;" data-i18n="closeModalBtn">Nova Carreira</button>
             </div>
         </div>
     </div>
@@ -588,6 +617,7 @@
     <!-- Confetti Canvas -->
     <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
 
-    <script src="app.js"></script>
+    <script src="translations.js?v=1.0.3"></script>
+    <script src="app.js?v=1.0.3"></script>
 </body>
 </html>

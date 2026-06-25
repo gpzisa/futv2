@@ -1,3 +1,237 @@
+﻿// 0. Internationalization (i18n) Setup
+let currentLang = localStorage.getItem("rumo_estrelato_lang") || "pt";
+
+function translate(key, defaultVal = "") {
+    if (typeof translations !== 'undefined' && translations[currentLang] && translations[currentLang][key] !== undefined) {
+        return translations[currentLang][key];
+    }
+    if (typeof translations !== 'undefined' && translations["pt"] && translations["pt"][key] !== undefined) {
+        return translations["pt"][key];
+    }
+    return defaultVal || key;
+}
+
+function translateTerm(category, term) {
+    if (typeof translatedTerms !== 'undefined' && translatedTerms[category] && translatedTerms[category][term]) {
+        const mapping = translatedTerms[category][term];
+        return mapping[currentLang] || mapping["pt"] || term;
+    }
+    return term;
+}
+
+function getTranslatedHeightValue(heightStr) {
+    if (!heightStr) return "";
+    if (currentLang === "en" || currentLang === "ja" || currentLang === "zh") {
+        return heightStr.replace(",", ".");
+    }
+    return heightStr;
+}
+
+function getTranslatedAgeValue(ageStr) {
+    if (!ageStr) return "";
+    const match = ageStr.match(/^(\d+)\s*(anos|ano)?$/i);
+    if (!match) return ageStr;
+    const num = match[1];
+    if (currentLang === "en") {
+        return `${num} years old`;
+    } else if (currentLang === "es") {
+        return `${num} años`;
+    } else if (currentLang === "ja") {
+        return `${num}歳`;
+    } else if (currentLang === "zh") {
+        return `${num}岁`;
+    } else {
+        return `${num} anos`;
+    }
+}
+
+function getTranslatedAttributeValue(attrStr) {
+    if (!attrStr) return "";
+    const match = attrStr.match(/^(\d+\/10)\s+-\s+(.*?)\s*\((.*?)\)$/);
+    if (!match) {
+        const simpleMatch = attrStr.match(/^(\d+\/10)\s+-\s+(.*?)$/);
+        if (simpleMatch) {
+            const score = simpleMatch[1];
+            const desc = simpleMatch[2];
+            const transDesc = translateTerm("attributes", desc);
+            return `${score} - ${transDesc}`;
+        }
+        return attrStr;
+    }
+    const score = match[1];
+    const desc = match[2];
+    const rarity = match[3];
+    const transDesc = translateTerm("attributes", desc);
+    const transRarity = translateTerm("rarities", rarity);
+    return `${score} - ${transDesc} (${transRarity})`;
+}
+
+function getTranslatedSeasonsValue(seasonsStr) {
+    if (!seasonsStr) return "";
+    const match = seasonsStr.match(/^(\d+)\s*(temporadas|temporada)?$/i);
+    if (!match) return seasonsStr;
+    const num = parseInt(match[1], 10);
+    if (currentLang === "en") {
+        return num === 1 ? "1 season" : `${num} seasons`;
+    } else if (currentLang === "es") {
+        return num === 1 ? "1 temporada" : `${num} temporadas`;
+    } else if (currentLang === "ja") {
+        return `${num}シーズン`;
+    } else if (currentLang === "zh") {
+        return `${num}个赛季`;
+    } else {
+        return num === 1 ? "1 temporada" : `${num} temporadas`;
+    }
+}
+
+function getTranslatedClubsValue(clubsStr) {
+    if (!clubsStr) return "";
+    const match = clubsStr.match(/^(\d+)\s*(clubes|clube)?$/i);
+    if (!match) return clubsStr;
+    const num = parseInt(match[1], 10);
+    if (currentLang === "en") {
+        return num === 1 ? "1 club" : `${num} clubs`;
+    } else if (currentLang === "es") {
+        return num === 1 ? "1 club" : `${num} clubes`;
+    } else if (currentLang === "ja") {
+        return `${num}クラブ`;
+    } else if (currentLang === "zh") {
+        return `${num}家俱乐部`;
+    } else {
+        return num === 1 ? "1 clube" : `${num} clubes`;
+    }
+}
+
+function getTranslatedValue(boxId, rawValue) {
+    if (!rawValue) return "";
+    switch (boxId) {
+        case "box-continent":
+            return translateTerm("continents", rawValue);
+        case "box-country":
+            return translateTerm("countries", rawValue);
+        case "box-height":
+            return getTranslatedHeightValue(rawValue);
+        case "box-age":
+            return getTranslatedAgeValue(rawValue);
+        case "box-position":
+            return translateTerm("positions", rawValue);
+        case "box-speed":
+        case "box-finishing":
+        case "box-dribbling":
+        case "box-passing":
+        case "box-strength":
+        case "box-defending":
+            return getTranslatedAttributeValue(rawValue);
+        case "box-seasons":
+            return getTranslatedSeasonsValue(rawValue);
+        case "box-clubs":
+            return getTranslatedClubsValue(rawValue);
+        default:
+            return rawValue;
+    }
+}
+
+function updateResultBoxValueOnly(boxId, rawValue) {
+    const box = document.getElementById(boxId);
+    if (!box || !box.classList.contains("completed")) return;
+    
+    const valueEl = box.querySelector(".box-value");
+    if (!valueEl) return;
+    
+    const translatedValue = getTranslatedValue(boxId, rawValue);
+    valueEl.innerText = translatedValue;
+    
+    // Sincronização com o painel móvel de progresso rápido
+    const boxToMobileMap = {
+        "box-continent": { id: "m-box-origin" },
+        "box-country": { id: "m-box-origin" },
+        "box-height": { id: "m-box-height" },
+        "box-age": { id: "m-box-age" },
+        "box-position": { id: "m-box-position" },
+        "box-speed": { id: "m-box-speed" },
+        "box-finishing": { id: "m-box-finishing" },
+        "box-dribbling": { id: "m-box-dribbling" },
+        "box-passing": { id: "m-box-passing" },
+        "box-strength": { id: "m-box-strength" },
+        "box-defending": { id: "m-box-defending" },
+        "box-seasons": { id: "m-box-seasons" },
+        "box-clubs": { id: "m-box-clubs" }
+    };
+    
+    const mobileMap = boxToMobileMap[boxId];
+    if (mobileMap) {
+        const mCard = document.getElementById(mobileMap.id);
+        if (mCard && mCard.classList.contains("completed")) {
+            const mVal = mCard.querySelector(".m-stat-val");
+            if (mVal) {
+                if (boxId === "box-continent") {
+                    if (!(typeof selectedCountry !== 'undefined' && selectedCountry)) {
+                        mVal.innerText = translatedValue;
+                    }
+                } else if (boxId === "box-country") {
+                    const flag = getCountryFlag(rawValue);
+                    mVal.innerText = `${flag} ${translatedValue}`;
+                } else if (["box-speed", "box-finishing", "box-dribbling", "box-passing", "box-strength", "box-defending"].includes(boxId)) {
+                    mVal.innerText = translatedValue.split("/")[0];
+                } else {
+                    mVal.innerText = translatedValue;
+                }
+            }
+        }
+    }
+}
+
+function getTranslatedRetirementReasonName(reasonName) {
+    const names = {
+        "Dores Crônicas 🤕": {
+            pt: "Dores Crônicas 🤕",
+            en: "Chronic Pain 🤕",
+            es: "Dolores Crónicos 🤕",
+            ja: "慢性的な痛み 🤕",
+            zh: "慢性伤病 🤕"
+        },
+        "Lesão Grave 🏥": {
+            pt: "Lesão Grave 🏥",
+            en: "Severe Injury 🏥",
+            es: "Lesión Grave 🏥",
+            ja: "深刻な怪我 🏥",
+            zh: "严重伤病 🏥"
+        },
+        "Escolha Própria 🚶‍♂️": {
+            pt: "Escolha Própria 🚶‍♂️",
+            en: "Personal Choice 🚶‍♂️",
+            es: "Elección Propia 🚶‍♂️",
+            ja: "自発的引退 🚶‍♂️",
+            zh: "个人选择 🚶‍♂️"
+        },
+        "Idade Avançada 👴": {
+            pt: "Idade Avançada 👴",
+            en: "Advanced Age 👴",
+            es: "Edad Avanzada 👴",
+            ja: "高齢 👴",
+            zh: "高龄 👴"
+        },
+        "Desejo de ser Treinador 📋": {
+            pt: "Desejo de ser Treinador 📋",
+            en: "Desire to Coach 📋",
+            es: "Deseo de ser Entrenador 📋",
+            ja: "指導者の志 📋",
+            zh: "转型教练的志向 📋"
+        },
+        "Desgaste Mental 🧠": {
+            pt: "Desgaste Mental 🧠",
+            en: "Mental Exhaustion 🧠",
+            es: "Desgaste Mental 🧠",
+            ja: "精神的疲労 🧠",
+            zh: "精神疲惫 🧠"
+        }
+    };
+    if (names[reasonName]) {
+        return names[reasonName][currentLang] || names[reasonName]["pt"];
+    }
+    return reasonName;
+}
+
 // 1. Data Configurations
 const continents = [
     {
@@ -114,14 +348,16 @@ const proAges = [
 
 // Discrete Heights
 const heights = [
-    { name: "1,50 m", desc: "um centro de gravidade baixíssimo e equilíbrio corporal perfeito, tornando você um verdadeiro pesadelo para os defensores devido à sua agilidade absurda em giros rápidos" },
-    { name: "1,60 m", desc: "um drible curto desconcertante e velocidade de reação fantástica, permitindo que você acelere instantaneamente em espaços muito reduzidos do campo" },
-    { name: "1,68 m", desc: "a estatura ideal dos maiores camisas 10 da história, oferecendo um balanço corporal irretocável entre velocidade, controle de bola e drible sob pressão" },
-    { name: "1,75 m", desc: "uma estatura extremamente equilibrada e versátil, concedendo flexibilidade para competir tanto na velocidade quanto no vigor físico em qualquer faixa do gramado" },
-    { name: "1,82 m", desc: "um porte físico moderno, potente e ágil, combinando passadas largas e elegantes com excelente vigor nos combates de corpo a corpo" },
-    { name: "1,88 m", desc: "uma estatura imponente e grande impulsão, ideal para dominar a área nos duelos aéreos e servir como referência física para proteger a bola" },
-    { name: "1,95 m", desc: "uma torre imponente em campo, dono de um alcance de passada gigantesco e força aérea incontestável, assombrando a defesa adversária nas bolas paradas" },
-    { name: "2,00 m", desc: "um gigante colossal, operando como um verdadeiro paredão que aniquila qualquer jogada aérea adversária e impõe um domínio físico inigualável" }
+    { name: "1,55 m", desc: "um centro de gravidade baixíssimo e equilíbrio corporal perfeito, tornando você um verdadeiro pesadelo para os defensores devido à sua agilidade absurda em espaços confinados" },
+    { name: "1,60 m", desc: "um drible curto desconcertante e velocidade de reação fantástica, permitindo que você acelere instantaneamente e escape da marcação em frações de segundo" },
+    { name: "1,65 m", desc: "a agilidade clássica e fluidez de movimento típica dos armadores mais criativos, facilitando mudanças rápidas de direção sem perder o controle da bola" },
+    { name: "1,70 m", desc: "a estatura de lendas clássicas do futebol, oferecendo um balanço perfeito entre agilidade, arrancada explosiva e controle preciso em velocidade sob pressão" },
+    { name: "1,75 m", desc: "uma estatura extremamente equilibrada e versátil, concedendo flexibilidade tática para competir tanto na velocidade quanto no vigor físico em qualquer faixa do gramado" },
+    { name: "1,80 m", desc: "um porte físico moderno de muita força e dinamismo, ideal para sustentar combates físicos sem perder a agilidade e a facilidade de condução de bola" },
+    { name: "1,85 m", desc: "uma estatura imponente que combina passadas largas e elegantes com excelente vigor, ideal para cobrir grandes áreas do campo com facilidade" },
+    { name: "1,90 m", desc: "uma presença física dominante com grande impulsão e força, ideal para ditar o ritmo no combate corpo a corpo e dominar o jogo aéreo na defesa ou no ataque" },
+    { name: "1,95 m", desc: "uma torre colossal de alcance de passada gigantesco, oferecendo uma vantagem aérea incontestável e intimidando qualquer defensor nas jogadas de bola parada" },
+    { name: "2,00 m", desc: "um verdadeiro gigante dos gramados, operando como um paredão intransponível que impõe uma superioridade física e aérea inigualável contra qualquer adversário" }
 ];
 
 // Master 10-level Attribute Tiers (1 to 10)
@@ -924,7 +1160,74 @@ function drawWheel() {
         ctx.shadowOffsetX = 1;
         ctx.shadowOffsetY = 1;
 
-        const nameToDraw = item.name;
+        let nameToDraw = item.name;
+        
+        // Tradução dinâmica das fatias no Canvas da Roleta
+        if (currentStep === 0) {
+            nameToDraw = translateTerm("continents", item.name);
+        } else if (currentStep === 1) {
+            nameToDraw = translateTerm("countries", item.name);
+        } else if (currentStep === 4) {
+            nameToDraw = translateTerm("positions", item.name);
+        } else if (currentStep >= 5 && currentStep <= 10) {
+            const parts = item.name.split(" - ");
+            if (parts.length === 2) {
+                nameToDraw = parts[0] + " - " + translateTerm("attributes", parts[1]);
+            }
+        } else if (currentStep === 11) {
+            const tempMatch = item.name.match(/^(\d+)\s+(Temporadas|Temporada)\s+\((.*?)\)$/);
+            if (tempMatch) {
+                const num = tempMatch[1];
+                const keyClass = tempMatch[3];
+                const translatedClass = translateTerm("retirementReasons", keyClass) || keyClass;
+                let wordSeasons = "Seasons";
+                if (currentLang === "pt" || currentLang === "es") wordSeasons = num === "1" ? "Temporada" : "Temporadas";
+                else if (currentLang === "ja") wordSeasons = "シーズン";
+                else if (currentLang === "zh") wordSeasons = "赛季";
+                nameToDraw = currentLang === "ja" ? `${num}${wordSeasons} (${translatedClass})` : `${num} ${wordSeasons} (${translatedClass})`;
+            }
+        } else if (currentStep === 12) {
+            const clubMatch = item.name.match(/^(\d+)\s+(Clubes|Clube)$/);
+            if (clubMatch) {
+                const num = clubMatch[1];
+                let wordClubs = "Clubs";
+                if (currentLang === "pt") wordClubs = num === "1" ? "Clube" : "Clubes";
+                else if (currentLang === "es") wordClubs = num === "1" ? "Club" : "Clubes";
+                else if (currentLang === "ja") wordClubs = "クラブ";
+                else if (currentLang === "zh") wordClubs = "家俱乐部";
+                nameToDraw = currentLang === "zh" ? `${num}${wordClubs}` : `${num} ${wordClubs}`;
+            }
+        } else if (currentStep === 13) {
+            if (currentSubStep === 2) {
+                const yearMatch = item.name.match(/^(\d+)\s+(anos|ano)$/);
+                if (yearMatch) {
+                    const num = yearMatch[1];
+                    let wordYears = "years";
+                    if (currentLang === "pt") wordYears = num === "1" ? "ano" : "anos";
+                    else if (currentLang === "es") wordYears = num === "1" ? "año" : "años";
+                    else if (currentLang === "ja") wordYears = "年間";
+                    else if (currentLang === "zh") wordYears = "年";
+                    nameToDraw = currentLang === "ja" || currentLang === "zh" ? `${num}${wordYears}` : `${num} ${wordYears}`;
+                }
+            } else if ([3, 5, 7, 9, 13, 15].includes(currentSubStep) || (currentStep === 14 && [0, 1, 3, 5, 9].includes(currentSubStep))) {
+                if (item.name === "Sim") {
+                    nameToDraw = currentLang === 'en' ? 'Yes' : currentLang === 'es' ? 'Sí' : currentLang === 'ja' ? 'はい' : currentLang === 'zh' ? '是' : 'Sim';
+                } else if (item.name === "Não") {
+                    nameToDraw = currentLang === 'en' ? 'No' : currentLang === 'es' ? 'No' : currentLang === 'ja' ? 'いいえ' : currentLang === 'zh' ? '否' : 'Não';
+                }
+            } else if (currentSubStep === 11) {
+                if (item.name === "Velocidade") nameToDraw = currentLang === 'en' ? 'Speed' : currentLang === 'es' ? 'Velocidad' : currentLang === 'ja' ? 'スピード' : currentLang === 'zh' ? '速度' : 'Velocidade';
+                else if (item.name === "Finalização") nameToDraw = currentLang === 'en' ? 'Finishing' : currentLang === 'es' ? 'Finalización' : currentLang === 'ja' ? '決定力' : currentLang === 'zh' ? '射门' : 'Finalização';
+                else if (item.name === "Drible") nameToDraw = currentLang === 'en' ? 'Dribbling' : currentLang === 'es' ? 'Regate' : currentLang === 'ja' ? 'ドリブル' : currentLang === 'zh' ? '盘带' : 'Drible';
+                else if (item.name === "Passe") nameToDraw = currentLang === 'en' ? 'Passing' : currentLang === 'es' ? 'Pase' : currentLang === 'ja' ? 'パス' : currentLang === 'zh' ? '传球' : 'Passe';
+                else if (item.name === "Força") nameToDraw = currentLang === 'en' ? 'Strength' : currentLang === 'es' ? 'Fuerza' : currentLang === 'ja' ? 'フィジカル' : currentLang === 'zh' ? '力量' : 'Força';
+                else if (item.name === "Defesa") nameToDraw = currentLang === 'en' ? 'Defense' : currentLang === 'es' ? 'Defensa' : currentLang === 'ja' ? 'ディフェンス' : currentLang === 'zh' ? '防守' : 'Defesa';
+            }
+        } else if (currentStep === 14) {
+            if (currentSubStep === 12) {
+                nameToDraw = translateTerm("retirementReasons", item.name);
+            }
+        }
 
         // Dynamic text size
         let fontSize = 17;
@@ -944,10 +1247,13 @@ function drawWheel() {
         ctx.textAlign = "right";
         ctx.textBaseline = "middle";
 
-        let displayText = nameToDraw;
+        // Remove emojis, glifos regionais (letras de bandeira do Windows) e tags para evitar falhas de renderização no Canvas
+        const cleanText = nameToDraw.replace(/[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F1E6}-\u{1F1FF}]{2}|[\u{E0020}-\u{E007F}]/gu, '').trim();
+
+        let displayText = cleanText;
         if (isDynamicWeight && sliceAngleDeg > 18) {
             const percentage = Math.round((item.weight / totalWeight) * 100);
-            displayText = `${nameToDraw} (${percentage}%)`;
+            displayText = `${cleanText} (${percentage}%)`;
         }
 
         ctx.fillText(displayText, radius - 35, 0);
@@ -1324,7 +1630,9 @@ function updateResultBox(boxId, value, gradientColors) {
     
     placeholder.classList.add("hidden");
     valueEl.classList.remove("hidden");
-    valueEl.innerText = value;
+    
+    const translatedValue = getTranslatedValue(boxId, value);
+    valueEl.innerText = translatedValue;
 
     box.style.borderColor = gradientColors[0];
     box.style.boxShadow = `0 0 12px rgba(${hexToRgb(gradientColors[0])}, 0.1), inset 0 0 8px rgba(${hexToRgb(gradientColors[0])}, 0.04)`;
@@ -1360,14 +1668,14 @@ function updateResultBox(boxId, value, gradientColors) {
             const mVal = mCard.querySelector(".m-stat-val");
             
             if (boxId === "box-continent") {
-                mVal.innerText = value;
+                mVal.innerText = translatedValue;
             } else if (boxId === "box-country") {
                 const flag = getCountryFlag(value);
-                mVal.innerText = `${flag} ${value}`;
+                mVal.innerText = `${flag} ${translatedValue}`;
             } else if (["box-speed", "box-finishing", "box-dribbling", "box-passing", "box-strength", "box-defending"].includes(boxId)) {
-                mVal.innerText = value.split("/")[0];
+                mVal.innerText = translatedValue.split("/")[0];
             } else {
-                mVal.innerText = value;
+                mVal.innerText = translatedValue;
             }
             
             if (gradientColors && gradientColors[0]) {
@@ -1728,22 +2036,30 @@ function getFUTStats() {
     const mapStat = (val) => Math.round(35 + val * 6.4);
     
     if (isGL) {
+        const labelsGL = {
+            pt: ["ELS", "IMP", "PAS", "REA", "DEF", "FOR"],
+            en: ["DIV", "HAN", "KIC", "REF", "SPD", "POS"],
+            es: ["EST", "MAN", "SAC", "REF", "VEL", "POS"],
+            ja: ["DIV", "HAN", "KIC", "REF", "SPD", "POS"],
+            zh: ["鱼跃", "手控", "开球", "反应", "速度", "防守"]
+        };
+        const langLabels = labelsGL[currentLang] || labelsGL["pt"];
         return [
-            { val: mapStat(sDribbling), lbl: "ELS" }, // Elasticidade
-            { val: mapStat(sFinishing), lbl: "IMP" }, // Impulsão
-            { val: mapStat(sPassing), lbl: "PAS" },    // Passe
-            { val: mapStat(sSpeed), lbl: "REA" },    // Reação
-            { val: mapStat(sDefending), lbl: "DEF" },  // Defesa
-            { val: mapStat(sStrength), lbl: "FOR" }   // Força
+            { val: mapStat(sDribbling), lbl: langLabels[0] },
+            { val: mapStat(sFinishing), lbl: langLabels[1] },
+            { val: mapStat(sPassing), lbl: langLabels[2] },
+            { val: mapStat(sSpeed), lbl: langLabels[3] },
+            { val: mapStat(sDefending), lbl: langLabels[4] },
+            { val: mapStat(sStrength), lbl: langLabels[5] }
         ];
     } else {
         return [
-            { val: mapStat(sSpeed), lbl: "RIT" },      // Ritmo/Velocidade
-            { val: mapStat(sFinishing), lbl: "FIN" },  // Finalização
-            { val: mapStat(sPassing), lbl: "PAS" },    // Passe
-            { val: mapStat(sDribbling), lbl: "DRI" },  // Drible
-            { val: mapStat(sDefending), lbl: "DEF" },  // Defesa
-            { val: mapStat(sStrength), lbl: "FIS" }    // Físico/Força
+            { val: mapStat(sSpeed), lbl: translate("futPAC") },      // Ritmo/Velocidade
+            { val: mapStat(sFinishing), lbl: translate("futSHO") },  // Finalização
+            { val: mapStat(sPassing), lbl: translate("futPAS") },    // Passe
+            { val: mapStat(sDribbling), lbl: translate("futDRI") },  // Drible
+            { val: mapStat(sDefending), lbl: translate("futDEF") },  // Defesa
+            { val: mapStat(sStrength), lbl: translate("futPHY") }    // Físico/Força
         ];
     }
 }
@@ -1764,31 +2080,47 @@ function getFUTAvatarEmoji() {
 function generateModalTrophiesHtml() {
     let html = '<div class="modal-trophies-list">';
     
+    // Termos de troféus traduzidos
+    const tLeague = currentLang === 'pt' ? 'Liga Nacional' : currentLang === 'en' ? 'National League' : currentLang === 'es' ? 'Liga Nacional' : currentLang === 'ja' ? '国内リーグ' : '国内顶级联赛';
+    const tInter = currentLang === 'pt' ? 'Copa Intercontinental' : currentLang === 'en' ? 'Intercontinental Cup' : currentLang === 'es' ? 'Copa Intercontinental' : currentLang === 'ja' ? 'インターコンチネンタルカップ' : '丰田杯/洲际杯';
+    const tWorld = currentLang === 'pt' ? 'Mundial de Clubes da FIFA' : currentLang === 'en' ? 'FIFA Club World Cup' : currentLang === 'es' ? 'Mundial de Clubes de la FIFA' : currentLang === 'ja' ? 'FIFAクラブワールドカップ' : '国际足联世俱杯';
+    const tNone = currentLang === 'pt' ? 'Sem títulos oficiais conquistados' : currentLang === 'en' ? 'No official titles won' : currentLang === 'es' ? 'Sin títulos oficiales ganados' : currentLang === 'ja' ? '公式タイトル獲得なし' : '未赢得任何官方冠军';
+    const tWc = currentLang === 'pt' ? 'Copa do Mundo da FIFA' : currentLang === 'en' ? 'FIFA World Cup' : currentLang === 'es' ? 'Copa Mundial de la FIFA' : currentLang === 'ja' ? 'FIFAワールドカップ' : '国际足联世界杯';
+    const tSelNone = currentLang === 'pt' ? 'Convocado para a seleção (Sem títulos conquistados)' : currentLang === 'en' ? 'Called up to national team (No titles won)' : currentLang === 'es' ? 'Convocado a la selección (Sin títulos ganados)' : currentLang === 'ja' ? '代表招集 (タイトル獲得なし)' : '入选国家队 (未获得冠军)';
+    const tBdor = currentLang === 'pt' ? 'Bola de Ouro (Melhor do Mundo)' : currentLang === 'en' ? 'Ballon d\'Or (World Player of the Year)' : currentLang === 'es' ? 'Balón de Oro (Mejor del Mundo)' : currentLang === 'ja' ? 'バロンドール (世界最優秀選手)' : '金球奖 (世界最佳球员)';
+
     // 1. Clubes
     careerHistory.forEach((rec, idx) => {
         let trophiesList = [];
         const cupName = getDomesticCupName(rec.league);
         const contName = rec.continentalTournament || getContinentalTournamentName(rec.league);
         
+        // Tradução do nome do torneio de clubes
+        let tCupName = cupName;
+        if (currentLang === "en") tCupName = cupName.replace("Copa do ", "").replace("Copa de ", "") + " Cup";
+        else if (currentLang === "ja") tCupName = cupName === "Copa do Brasil" ? "ブラジルカップ" : "カップ戦";
+        else if (currentLang === "zh") tCupName = cupName === "Copa do Brasil" ? "巴西杯" : "国内杯赛";
+        
+        let tContName = translateContinentalTournamentName(contName, currentLang);
+        
         if (rec.wonLeague && rec.leagueTitles > 0) {
-            trophiesList.push(`<li><span class="trophy-icon">🏆</span> <strong>${rec.leagueTitles}x</strong> Liga Nacional</li>`);
+            trophiesList.push(`<li><span class="trophy-icon">🏆</span> <strong>${rec.leagueTitles}x</strong> ${tLeague}</li>`);
         }
         if (rec.wonCup && rec.cupTitles > 0) {
-            trophiesList.push(`<li><span class="trophy-icon">🏆</span> <strong>${rec.cupTitles}x</strong> ${cupName}</li>`);
+            trophiesList.push(`<li><span class="trophy-icon">🏆</span> <strong>${rec.cupTitles}x</strong> ${tCupName}</li>`);
         }
         if (rec.wonContinental && rec.continentalTitles > 0) {
-            trophiesList.push(`<li><span class="trophy-icon">🏆</span> <strong>${rec.continentalTitles}x</strong> ${contName}</li>`);
+            trophiesList.push(`<li><span class="trophy-icon">🏆</span> <strong>${rec.continentalTitles}x</strong> ${tContName}</li>`);
         }
         if (rec.wonIntercontinental && rec.intercontinentalTitles > 0) {
-            trophiesList.push(`<li><span class="trophy-icon">🌐</span> <strong>${rec.intercontinentalTitles}x</strong> Copa Intercontinental</li>`);
+            trophiesList.push(`<li><span class="trophy-icon">🌐</span> <strong>${rec.intercontinentalTitles}x</strong> ${tInter}</li>`);
         }
         if (rec.wonWorldClubCup && rec.worldClubCupTitles > 0) {
-            trophiesList.push(`<li><span class="trophy-icon">👑</span> <strong>${rec.worldClubCupTitles}x</strong> Mundial de Clubes da FIFA</li>`);
+            trophiesList.push(`<li><span class="trophy-icon">👑</span> <strong>${rec.worldClubCupTitles}x</strong> ${tWorld}</li>`);
         }
         
-        // Se o jogador não ganhou títulos por este clube, mostra um item neutro indicando a passagem
         if (trophiesList.length === 0) {
-            trophiesList.push(`<li><span class="trophy-icon" style="opacity: 0.45;">⚪</span> Sem títulos oficiais conquistados</li>`);
+            trophiesList.push(`<li><span class="trophy-icon" style="opacity: 0.45;">⚪</span> ${tNone}</li>`);
         }
         
         const activeLeagueObj = leagues.find(l => l.name === rec.league) || leagues[1];
@@ -1796,9 +2128,9 @@ function generateModalTrophiesHtml() {
             <div class="modal-trophy-card">
                 <div class="modal-trophy-card-header">
                     <span class="modal-trophy-club" style="color: ${activeLeagueObj.color}">${getClubCrestEmoji(rec.team.name)} ${rec.team.name}</span>
-                    <span class="modal-trophy-duration">${rec.years} ${rec.years === 1 ? 'ano' : 'anos'}</span>
+                    <span class="modal-trophy-duration">${rec.years} ${rec.years === 1 ? (currentLang === 'ja' || currentLang === 'zh' ? '年' : currentLang === 'en' ? 'year' : 'ano') : (currentLang === 'ja' || currentLang === 'zh' ? '年' : currentLang === 'en' ? 'years' : 'anos')}</span>
                 </div>
-                <div style="font-size: 0.68rem; color: var(--color-text-secondary); margin-bottom: 5px; text-align: left; padding-left: 0.4rem;">${rec.league}</div>
+                <div style="font-size: 0.68rem; color: var(--color-text-secondary); margin-bottom: 5px; text-align: left; padding-left: 0.4rem;">${translateTerm("continents", rec.league) || rec.league}</div>
                 <ul class="modal-trophy-ul">
                     ${trophiesList.join("")}
                 </ul>
@@ -1810,24 +2142,27 @@ function generateModalTrophiesHtml() {
     if (convocandoSelecao) {
         let selectionTrophies = [];
         const contNameSel = getContinentalSelectionTournamentName();
+        const tContSelName = translateContinentalTournamentName(contNameSel, currentLang);
         
         if (ganhouContinentalSelecoes && titulosContinentalSelecoesCount > 0) {
-            selectionTrophies.push(`<li><span class="trophy-icon">🏆</span> <strong>${titulosContinentalSelecoesCount}x</strong> ${contNameSel}</li>`);
+            selectionTrophies.push(`<li><span class="trophy-icon">🏆</span> <strong>${titulosContinentalSelecoesCount}x</strong> ${tContSelName}</li>`);
         }
         if (ganhouCopaMundo && titulosCopaMundoCount > 0) {
-            selectionTrophies.push(`<li><span class="trophy-icon">🏆</span> <strong>${titulosCopaMundoCount}x</strong> Copa do Mundo da FIFA</li>`);
+            selectionTrophies.push(`<li><span class="trophy-icon">🏆</span> <strong>${titulosCopaMundoCount}x</strong> ${tWc}</li>`);
         }
         
-        // Se não ganhou títulos pela seleção, mostra um item neutro indicando a convocação
         if (selectionTrophies.length === 0) {
-            selectionTrophies.push(`<li><span class="trophy-icon" style="opacity: 0.45;">⚪</span> Convocado para a seleção (Sem títulos conquistados)</li>`);
+            selectionTrophies.push(`<li><span class="trophy-icon" style="opacity: 0.45;">⚪</span> ${tSelNone}</li>`);
         }
         
+        const selectionTitle = currentLang === 'pt' ? `Seleção de ${selectedCountry.name}` : currentLang === 'en' ? `${translateTerm("countries", selectedCountry.name)} National Team` : currentLang === 'es' ? `Selección de ${translateTerm("countries", selectedCountry.name)}` : currentLang === 'ja' ? `${translateTerm("countries", selectedCountry.name)}代表` : `${translateTerm("countries", selectedCountry.name)}国家队`;
+        const durationText = currentLang === 'pt' ? 'Internacional' : currentLang === 'en' ? 'International' : currentLang === 'es' ? 'Internacional' : currentLang === 'ja' ? '代表キャリア' : '国家队生涯';
+
         html += `
             <div class="modal-trophy-card selection-card">
                 <div class="modal-trophy-card-header">
-                    <span class="modal-trophy-club" style="color: #60a5fa">🇺🇳 Seleção de ${selectedCountry.name} ${getCountryFlag(selectedCountry.name)}</span>
-                    <span class="modal-trophy-duration">Internacional</span>
+                    <span class="modal-trophy-club" style="color: #60a5fa">🇺🇳 ${currentLang === 'pt' ? `Seleção de ${selectedCountry.name}` : currentLang === 'en' ? `${translateTerm("countries", selectedCountry.name)} National Team` : currentLang === 'es' ? `Selección de ${translateTerm("countries", selectedCountry.name)}` : currentLang === 'ja' ? `${translateTerm("countries", selectedCountry.name)}代表` : `${translateTerm("countries", selectedCountry.name)}国家队`} ${getCountryFlag(selectedCountry.name)}</span>
+                    <span class="modal-trophy-duration">${durationText}</span>
                 </div>
                 <ul class="modal-trophy-ul">
                     ${selectionTrophies.join("")}
@@ -1838,24 +2173,26 @@ function generateModalTrophiesHtml() {
     
     // 3. Prêmios Individuais
     if (ganhouBolaDeOuro && bolaDeOuroCount > 0) {
+        const indTitle = currentLang === 'pt' ? 'Prêmios Individuais' : currentLang === 'en' ? 'Individual Awards' : currentLang === 'es' ? 'Premios Individuales' : currentLang === 'ja' ? '個人賞' : '个人荣誉';
+        const indDuration = currentLang === 'pt' ? 'Consagração' : currentLang === 'en' ? 'Consecration' : currentLang === 'es' ? 'Consagración' : currentLang === 'ja' ? '栄誉' : '殿堂荣誉';
         html += `
             <div class="modal-trophy-card individual-card">
                 <div class="modal-trophy-card-header">
-                    <span class="modal-trophy-club" style="color: #fbbf24">⭐ Prêmios Individuais</span>
-                    <span class="modal-trophy-duration">Consagração</span>
+                    <span class="modal-trophy-club" style="color: #fbbf24">⭐ ${indTitle}</span>
+                    <span class="modal-trophy-duration">${indDuration}</span>
                 </div>
                 <ul class="modal-trophy-ul">
-                    <li><span class="trophy-icon">⭐</span> <strong>${bolaDeOuroCount}x</strong> Bola de Ouro (Melhor do Mundo)</li>
+                    <li><span class="trophy-icon">⭐</span> <strong>${bolaDeOuroCount}x</strong> ${tBdor}</li>
                 </ul>
             </div>
         `;
     }
     
-    // Se o histórico de carreira estiver totalmente vazio por algum motivo de reinício falho
+    // Se o histórico de carreira estiver totalmente vazio
     if (careerHistory.length === 0 && !convocandoSelecao && (!ganhouBolaDeOuro || bolaDeOuroCount === 0)) {
         html += `
             <div class="timeline-placeholder" style="padding: 3rem 1rem;">
-                😔 Nenhuma informação de carreira disponível.
+                😔 ${currentLang === 'pt' ? 'Nenhuma informação de carreira disponível.' : currentLang === 'en' ? 'No career information available.' : currentLang === 'es' ? 'Ninguna información de carrera disponible.' : currentLang === 'ja' ? 'キャリア情報がありません。' : '暂无职业生涯信息。'}
             </div>
         `;
     }
@@ -1866,28 +2203,31 @@ function generateModalTrophiesHtml() {
 
 // 11. Final Journey Revelations
 function showFinalJourney() {
-    // Reset modal tab to bio
-    switchModalTab("modal-bio");
-    
     // Render trophies list
     const trophiesGallery = document.getElementById("modalTrophiesGallery");
     if (trophiesGallery) {
         trophiesGallery.innerHTML = generateModalTrophiesHtml();
     }
 
-    summaryContinent.innerText = selectedContinent;
-    summaryCountry.innerText = selectedCountry.name;
-    summaryHeight.innerText = selectedHeight.name;
-    summaryAge.innerText = selectedAge.name;
-    summaryPosition.innerText = selectedPosition.name;
-    summarySpeed.innerText = selectedSpeed.name;
-    summaryFinishing.innerText = selectedFinishing.name;
-    summaryDribbling.innerText = selectedDribbling.name;
-    summaryPassing.innerText = selectedPassing.name;
-    summaryStrength.innerText = selectedStrength.name;
-    summaryDefending.innerText = selectedDefending.name;
-    summarySeasons.innerText = selectedSeasons.name;
-    summaryClubs.innerText = selectedClubs.name;
+    summaryContinent.innerText = translateTerm("continents", selectedContinent);
+    summaryCountry.innerText = translateTerm("countries", selectedCountry.name);
+    summaryHeight.innerText = getTranslatedHeightValue(selectedHeight.name);
+    summaryAge.innerText = getTranslatedAgeValue(selectedAge.name);
+    summaryPosition.innerText = translateTerm("positions", selectedPosition.name);
+    
+    // Função local para formatar e traduzir atributos do summary grid
+    const formatAttr = (attrObj) => {
+        const parts = attrObj.name.split(" - ");
+        return parts[0] + " - " + translateTerm("attributes", parts[1]);
+    };
+    summarySpeed.innerText = formatAttr(selectedSpeed);
+    summaryFinishing.innerText = formatAttr(selectedFinishing);
+    summaryDribbling.innerText = formatAttr(selectedDribbling);
+    summaryPassing.innerText = formatAttr(selectedPassing);
+    summaryStrength.innerText = formatAttr(selectedStrength);
+    summaryDefending.innerText = formatAttr(selectedDefending);
+    summarySeasons.innerText = getTranslatedSeasonsValue(selectedSeasons.name);
+    summaryClubs.innerText = getTranslatedClubsValue(selectedClubs.name);
 
     // Fetch and populate the 5 new summary items
     const summarySelection = document.getElementById("summarySelection");
@@ -1897,16 +2237,19 @@ function showFinalJourney() {
     const summaryBallonDor = document.getElementById("summaryBallonDor");
 
     if (summarySelection) {
-        summarySelection.innerText = convocandoSelecao ? "Convocado 🌟" : "Não convocado ❌";
+        summarySelection.innerText = convocandoSelecao 
+            ? (currentLang === 'pt' ? "Convocado 🌟" : currentLang === 'en' ? "Called Up 🌟" : currentLang === 'es' ? "Convocado 🌟" : currentLang === 'ja' ? "招集 🌟" : "获得入选 🌟") 
+            : (currentLang === 'pt' ? "Não convocado ❌" : currentLang === 'en' ? "Not Called ❌" : currentLang === 'es' ? "No convocado ❌" : currentLang === 'ja' ? "招集なし ❌" : "未获得入选 ❌");
         summarySelection.style.color = convocandoSelecao ? "#86efac" : "#fca5a5";
     }
 
     if (summaryWorldCup) {
         if (convocandoSelecao && jogouCopaMundo) {
-            summaryWorldCup.innerText = `${ganhouCopaMundo ? `${titulosCopaMundoCount}x 🏆` : "0x 🏆"} / ${quantidadeCopasDisputadas} Copa(s)`;
+            const labelCopas = currentLang === 'ja' ? '大会' : currentLang === 'zh' ? '届' : 'Copa(s)';
+            summaryWorldCup.innerText = `${ganhouCopaMundo ? `${titulosCopaMundoCount}x 🏆` : "0x 🏆"} / ${quantidadeCopasDisputadas} ${labelCopas}`;
             summaryWorldCup.style.color = ganhouCopaMundo ? "#fef08a" : "#cbd5e1";
         } else {
-            summaryWorldCup.innerText = "Não disputou ❌";
+            summaryWorldCup.innerText = currentLang === 'pt' ? "Não disputou ❌" : currentLang === 'en' ? "Didn't play ❌" : currentLang === 'es' ? "No disputó ❌" : currentLang === 'ja' ? "出場なし ❌" : "未参赛 ❌";
             summaryWorldCup.style.color = "#cbd5e1";
         }
     }
@@ -1917,152 +2260,229 @@ function showFinalJourney() {
             summaryContinentalSelection.innerText = `${ganhouContinentalSelecoes ? `${titulosContinentalSelecoesCount}x 🏆` : "0x 🏆"} ${contName.split(" ")[0]}`;
             summaryContinentalSelection.style.color = ganhouContinentalSelecoes ? "#fef08a" : "#cbd5e1";
         } else {
-            summaryContinentalSelection.innerText = "Não disputou ❌";
+            summaryContinentalSelection.innerText = currentLang === 'pt' ? "Não disputou ❌" : currentLang === 'en' ? "Didn't play ❌" : currentLang === 'es' ? "No disputó ❌" : currentLang === 'ja' ? "出場なし ❌" : "未参赛 ❌";
             summaryContinentalSelection.style.color = "#cbd5e1";
         }
     }
 
     if (summaryStats) {
-        const statsLabel = summaryStats.previousElementSibling;
+        const statsLabelG = currentLang === 'ja' ? '得点' : currentLang === 'zh' ? '进球' : 'G';
+        const statsLabelA = currentLang === 'ja' ? 'アシスト' : currentLang === 'zh' ? '助攻' : 'A';
         if (selectedPosition && selectedPosition.name === "Goleiro") {
-            summaryStats.innerText = `${selectedCareerGoals} ⚽ / ${selectedCareerAssists} 🎯 / ${selectedCareerCleanSheets} 🧤`;
-            if (statsLabel) statsLabel.innerText = "Gols, Assists & Clean Sheets";
+            summaryStats.innerText = `${selectedCareerGoals} ${statsLabelG} / ${selectedCareerAssists} ${statsLabelA} / ${selectedCareerCleanSheets} CS`;
         } else {
-            summaryStats.innerText = `${selectedCareerGoals} ⚽ / ${selectedCareerAssists} 🎯`;
-            if (statsLabel) statsLabel.innerText = "Gols & Assistências";
+            summaryStats.innerText = `${selectedCareerGoals} ${statsLabelG} / ${selectedCareerAssists} ${statsLabelA}`;
         }
-        summaryStats.style.color = "#bae6fd";
+        summaryStats.style.color = "#cbd5e1";
     }
 
     if (summaryBallonDor) {
-        summaryBallonDor.innerText = ganhouBolaDeOuro ? `${bolaDeOuroCount}x 🌟` : "Nenhuma ❌";
+        summaryBallonDor.innerText = ganhouBolaDeOuro ? `${bolaDeOuroCount}x 🏆` : "0x 🏆";
         summaryBallonDor.style.color = ganhouBolaDeOuro ? "#fef08a" : "#cbd5e1";
     }
 
-    const continentObj = continents.find(c => c.name === selectedContinent) || continents[2];
-    summaryContinent.style.color = continentObj.color;
-    summaryCountry.style.color = continentObj.gradient[1];
-    summaryHeight.style.color = "#a7f3d0";
-    summaryAge.style.color = "#bae6fd";
-    summaryPosition.style.color = "#fed7aa";
-    
-    // Skills formatting in modal
-    summarySpeed.style.color = selectedSpeed.color;
-    summaryFinishing.style.color = selectedFinishing.color;
-    summaryDribbling.style.color = selectedDribbling.color;
-    summaryPassing.style.color = selectedPassing.color;
-    summaryStrength.style.color = selectedStrength.color;
-    summaryDefending.style.color = selectedDefending.color;
-    
-    summarySeasons.style.color = "#cfdef3";
-    summaryClubs.style.color = "#fed7aa";
     let careerJourneyText = "";
     let totalLeaguesWon = 0;
     let totalCupsWon = 0;
     let totalContinentalsWon = 0;
     let totalIntercontinentalsWon = 0;
     let totalWorldClubCupsWon = 0;
-    
+
+    const template = bioTemplates[currentLang] || bioTemplates["pt"];
+
     careerHistory.forEach((rec, idx) => {
-        const clubNum = getOrdinalNumber(idx + 1);
+        const clubNum = idx + 1;
         const cupName = getDomesticCupName(rec.league);
         const contName = rec.continentalTournament || getContinentalTournamentName(rec.league);
         
         let trophies = [];
+        
+        let translatedCupName = cupName;
+        if (currentLang === "en") {
+            translatedCupName = cupName.replace("Copa do ", "").replace("Copa de ", "") + " Cup";
+        } else if (currentLang === "ja") {
+            translatedCupName = cupName === "Copa do Brasil" ? "ブラジルカップ" : "カップ戦";
+        } else if (currentLang === "zh") {
+            translatedCupName = cupName === "Copa do Brasil" ? "巴西杯" : "国内杯赛";
+        }
+        
+        let translatedContName = translateContinentalTournamentName(contName, currentLang);
+
         if (rec.wonLeague) {
-            trophies.push(`${rec.leagueTitles}x Campeão da Liga`);
+            const term = currentLang === "pt" ? `${rec.leagueTitles}x Campeão da Liga` 
+                        : currentLang === "en" ? `${rec.leagueTitles}x League Champion`
+                        : currentLang === "es" ? `${rec.leagueTitles}x Campeón de Liga`
+                        : currentLang === "ja" ? `リーグ優勝 ${rec.leagueTitles}回`
+                        : `联赛冠军 ${rec.leagueTitles}次`;
+            trophies.push(`<strong class="hl-gold">${term}</strong>`);
             totalLeaguesWon += rec.leagueTitles;
         }
         if (rec.wonCup) {
-            trophies.push(`${rec.cupTitles}x Campeão da ${cupName}`);
+            const term = currentLang === "pt" ? `${rec.cupTitles}x Campeão da ${cupName}` 
+                        : currentLang === "en" ? `${rec.cupTitles}x ${translatedCupName} Champion`
+                        : currentLang === "es" ? `${rec.cupTitles}x Campeón de la ${cupName}`
+                        : currentLang === "ja" ? `${translatedCupName}優勝 ${rec.cupTitles}回`
+                        : `${translatedCupName}冠军 ${rec.cupTitles}次`;
+            trophies.push(`<strong class="hl-gold">${term}</strong>`);
             totalCupsWon += rec.cupTitles;
         }
         if (rec.wonContinental) {
-            trophies.push(`${rec.continentalTitles}x Campeão da ${contName}`);
+            const term = currentLang === "pt" ? `${rec.continentalTitles}x Campeão da ${contName}` 
+                        : currentLang === "en" ? `${rec.continentalTitles}x ${translatedContName} Champion`
+                        : currentLang === "es" ? `${rec.continentalTitles}x Campeón de la ${contName}`
+                        : currentLang === "ja" ? `${translatedContName}優勝 ${rec.continentalTitles}回`
+                        : `${translatedContName}冠军 ${rec.continentalTitles}次`;
+            trophies.push(`<strong class="hl-gold">${term}</strong>`);
             totalContinentalsWon += rec.continentalTitles;
         }
         if (rec.wonIntercontinental) {
-            trophies.push(`${rec.intercontinentalTitles}x Campeão da Copa Intercontinental`);
+            const term = currentLang === "pt" ? `${rec.intercontinentalTitles}x Campeão da Copa Intercontinental` 
+                        : currentLang === "en" ? `${rec.intercontinentalTitles}x Intercontinental Cup Champion`
+                        : currentLang === "es" ? `${rec.intercontinentalTitles}x Campeón de la Copa Intercontinental`
+                        : currentLang === "ja" ? `インターコンチネンタルカップ優勝 ${rec.intercontinentalTitles}回`
+                        : `丰田杯/洲际杯冠军 ${rec.intercontinentalTitles}次`;
+            trophies.push(`<strong class="hl-gold">${term}</strong>`);
             totalIntercontinentalsWon += rec.intercontinentalTitles;
         }
         if (rec.wonWorldClubCup) {
-            trophies.push(`${rec.worldClubCupTitles}x Campeão do Mundial de Clubes da FIFA`);
+            const term = currentLang === "pt" ? `${rec.worldClubCupTitles}x Campeão do Mundial de Clubes da FIFA` 
+                        : currentLang === "en" ? `${rec.worldClubCupTitles}x FIFA Club World Cup Champion`
+                        : currentLang === "es" ? `${rec.worldClubCupTitles}x Campeón del Mundial de Clubes de la FIFA`
+                        : currentLang === "ja" ? `FIFAクラブワールドカップ優勝 ${rec.worldClubCupTitles}回`
+                        : `世俱杯冠军 ${rec.worldClubCupTitles}次`;
+            trophies.push(`<strong class="hl-gold">${term}</strong>`);
             totalWorldClubCupsWon += rec.worldClubCupTitles;
         }
         
-        let trophyStr = trophies.length > 0 ? `conquistando ${trophies.join(", ")}` : "não conquistando títulos coletivos, mas demonstrando garra";
-        let evolutionStr = rec.improvedAttributes ? `evoluiu fisicamente em ${rec.numImproved} ${rec.numImproved === 1 ? 'atributo' : 'atributos'}` : "manteve sua constância técnica";
+        let listStr = trophies.join(", ");
+        let trophyStr = trophies.length > 0 
+            ? template.trophyWonList.replace("{list}", listStr)
+            : template.noTrophiesText;
+            
+        let evolutionStr = rec.improvedAttributes 
+            ? template.evolvedText.replace("{num}", rec.numImproved).replace("{attrText}", rec.numImproved === 1 ? template.attrSingular : template.attrPlural)
+            : template.noEvolutionText;
+            
+        let yearsText = rec.years === 1 ? template.yearsSingular : template.yearsPlural;
         
-        careerJourneyText += `<br>• No seu <strong>${clubNum} clube</strong>, the tradicional <strong>${rec.team.name}</strong> (${rec.league.replace(/\s*\(.*?\)/, "")}), você permaneceu por <strong>${rec.years} ${rec.years === 1 ? 'ano' : 'anos'}</strong>, ${trophyStr}. Durante esta passagem, você ${evolutionStr}.`;
+        let itemHtml = template.clubJourneyItem
+            .replace("{clubNum}", clubNum)
+            .replace("{teamName}", rec.team.name)
+            .replace("{leagueName}", translateTerm("continents", rec.league) || rec.league.replace(/\s*\(.*?\)/, ""))
+            .replace("{years}", rec.years)
+            .replace("{yearsText}", yearsText)
+            .replace("{trophyStr}", trophyStr)
+            .replace("{evolutionStr}", evolutionStr);
+            
+        careerJourneyText += itemHtml;
     });
 
     const finalTeamObj = careerHistory[careerHistory.length - 1];
     
     // Club narrative
-    let clubStory = `Sua lendária jornada começou na deslumbrante <strong>${selectedContinent}</strong>, nascendo na nação de <strong>${selectedCountry.name}</strong>, ${selectedCountry.desc}. Conforme você crescia nas categorias de base locais, seu físico desenvolveu-se de forma ideal, atingindo <strong>${selectedHeight.name}</strong> de estatura (${selectedHeight.desc}). Assinou seu primeiro contrato profissional extremamente jovem, com apenas <strong>${selectedAge.name}</strong> (${selectedAge.desc}).<br><br>
-    
-    Em campo, consagrou-se na posição de <strong>${selectedPosition.name}</strong> (${selectedPosition.desc}). Ao longo de <strong>${selectedSeasons.name}</strong> de atividade profissional ativa, você construiu uma história grandiosa defendendo as cores de <strong>${selectedClubs.name}</strong>:
-    ${careerJourneyText}<br><br>`;
-    
+    let clubStory = template.clubStoryStart
+        .replace("{continent}", translateTerm("continents", selectedContinent))
+        .replace("{country}", translateTerm("countries", selectedCountry.name))
+        .replace("{countryDesc}", getTranslatedCountryDesc(selectedCountry.name, currentLang))
+        .replace("{height}", getTranslatedHeightValue(selectedHeight.name))
+        .replace("{heightDesc}", getTranslatedHeightDesc(selectedHeight.desc, currentLang))
+        .replace("{age}", getTranslatedAgeValue(selectedAge.name))
+        .replace("{ageDesc}", getTranslatedAgeDesc(selectedAge.desc, currentLang))
+        .replace("{position}", translateTerm("positions", selectedPosition.name))
+        .replace("{positionDesc}", getTranslatedPositionDesc(selectedPosition.name, currentLang))
+        .replace("{seasons}", getTranslatedSeasonsValue(selectedSeasons.name))
+        .replace("{clubs}", getTranslatedClubsValue(selectedClubs.name))
+        + careerJourneyText + "<br><br>";
+        
     // International narrative
     let internationalStory = "";
     if (convocandoSelecao) {
-        internationalStory += `Seu talento excepcional não passou despercebido pela comissão técnica da seleção nacional de <strong>${selectedCountry.name}</strong>, culminando in uma convocação histórica para representar o seu país. `;
+        internationalStory += template.intCallUp.replace("{country}", translateTerm("countries", selectedCountry.name));
         
         if (jogouCopaMundo) {
-            internationalStory += `Você teve a honra máxima de defender as cores da sua pátria na prestigiada Copa do Mundo em <strong>${quantidadeCopasDisputadas} ${quantidadeCopasDisputadas === 1 ? 'edição' : 'edições'}</strong>. `;
+            let edText = quantidadeCopasDisputadas === 1 ? template.editionSingular : template.editionPlural;
+            internationalStory += template.wcPlayed.replace("{wcEditions}", quantidadeCopasDisputadas).replace("{editionText}", edText);
+            
             if (ganhouCopaMundo) {
-                internationalStory += `Escreveu seu nome para sempre na eternidade do esporte ao consagrar-se <strong>Campeão do Mundo por ${titulosCopaMundoCount} ${titulosCopaMundoCount === 1 ? 'vez' : 'vezes'}</strong>, um feito lendário que parou o seu país em comemoração. `;
+                let timesText = titulosCopaMundoCount === 1 ? template.timesSingular : template.timesPlural;
+                internationalStory += template.wcWon.replace("{wcCount}", titulosCopaMundoCount).replace("{timesText}", timesText);
             } else {
-                internationalStory += `Apesar de batalhar intensamente e liderar o elenco nos gramados mundiais, o cobiçado troféu da Copa do Mundo acabou escapando por detalhes. `;
+                internationalStory += template.wcNotWon;
             }
         } else {
-            internationalStory += `Apesar de suas excelentes atuações individuais, a sua seleção não conseguiu a classificação para disputar a Copa do Mundo durante o período em que você esteve ativo. `;
+            internationalStory += template.wcNotPlayed;
         }
         
         const contName = getContinentalSelectionTournamentName();
+        const translatedContName = translateContinentalTournamentName(contName, currentLang);
+        
         if (ganhouContinentalSelecoes) {
-            internationalStory += `No cenário continental de seleções, você alcançou o topo ao sagrar-se campeão da <strong>${contName} por ${titulosContinentalSelecoesCount} ${titulosContinentalSelecoesCount === 1 ? 'vez' : 'vezes'}</strong>. `;
+            let timesText = titulosContinentalSelecoesCount === 1 ? template.timesSingular : template.timesPlural;
+            internationalStory += template.contWon.replace("{contName}", translatedContName).replace("{contCount}", titulosContinentalSelecoesCount).replace("{timesText}", timesText);
         } else {
-            internationalStory += `Nos torneios continentais, você disputou a tradicional <strong>${contName}</strong> com extrema garra, embora não tenha conseguido erguer esta taça. `;
+            internationalStory += template.contNotWon.replace("{contName}", translatedContName);
         }
     } else {
-        internationalStory += `Infelizmente, devido à enorme concorrência ou decisões táticas dos comandantes, você não chegou a estrear pela seleção principal de <strong>${selectedCountry.name}</strong>, focando toda a sua energia e dedicação tática nas ligas de clubes. `;
+        internationalStory += template.intNoCallUp.replace("{country}", translateTerm("countries", selectedCountry.name));
     }
     internationalStory += "<br><br>";
     
     // Goals & Assists narrative
     let statsStory = "";
     if (selectedPosition && selectedPosition.name === "Goleiro") {
-        statsStory = `Ao longo de toda a sua trajetória profissional de elite, operando sob as traves, você acumulou estatísticas defensivas monumentais. Além de marcar <strong>${selectedCareerGoals} gols</strong> (surpreendendo em cobranças de falta, pênaltis ou subidas dramáticas na área adversária no último minuto) e distribuir <strong>${selectedCareerAssists} assistências</strong>, você alcançou a marca incrível de <strong>${selectedCareerCleanSheets} jogos sem sofrer gols (Clean Sheets)</strong>, tornando-se uma verdadeira muralha intransponível.<br><br>`;
+        statsStory = template.statsGoleiro
+            .replace("{goals}", selectedCareerGoals)
+            .replace("{assists}", selectedCareerAssists)
+            .replace("{cleanSheets}", selectedCareerCleanSheets);
     } else {
-        statsStory = `Ao longo de toda a sua trajetória profissional de elite, você acumulou estatísticas marcantes nos gramados. Com extrema presença de jogo e inteligência tática, você encerrou sua carreira oficial com a marca incrível de <strong>${selectedCareerGoals} gols marcados</strong> e <strong>${selectedCareerAssists} assistências distribuídas</strong> em partidas oficiais de clubes e seleção.<br><br>`;
+        statsStory = template.statsLinePlayer
+            .replace("{goals}", selectedCareerGoals)
+            .replace("{assists}", selectedCareerAssists);
     }
     
     // Ballon d'Or and Individual Climax
     let awardsStory = "";
     if (ganhouBolaDeOuro) {
-        awardsStory += `Como consagração individual máxima de seu gênio inquestionável com a bola nos pés, você foi eleito o melhor jogador do planeta, conquistando a cobiçada <strong>Bola de Ouro por ${bolaDeOuroCount} ${bolaDeOuroCount === 1 ? 'vez' : 'vezes'}</strong>! `;
+        const timesText = bolaDeOuroCount === 1 ? template.timesSingular : template.timesPlural;
+        awardsStory = template.ballonDorWon
+            .replace("{bCount}", bolaDeOuroCount)
+            .replace("{timesText}", timesText);
     } else {
-        awardsStory += `Apesar de seu futebol primoroso e de sua enorme regularidade competitiva, a cobiçada premiação da Bola de Ouro não veio nesta vida, mas você se aposentou consagrado como um dos atletas de equipe mais respeitados e queridos de sua geração. `;
+        awardsStory = template.ballonDorNotWon;
     }
     
     const isGoleiro = selectedPosition && selectedPosition.name === "Goleiro";
-    const speedAttrName = isGoleiro ? "Tempo de Reação" : "Velocidade";
-    const finishingAttrName = isGoleiro ? "Impulsão" : "Finalização";
-    const dribblingAttrName = isGoleiro ? "Elasticidade" : "Drible";
+    const speedAttrName = getTranslatedAttributeName(isGoleiro ? "Tempo de Reação" : "Velocidade", isGoleiro, currentLang);
+    const finishingAttrName = getTranslatedAttributeName(isGoleiro ? "Impulsão" : "Finalização", isGoleiro, currentLang);
+    const dribblingAttrName = getTranslatedAttributeName(isGoleiro ? "Elasticidade" : "Drible", isGoleiro, currentLang);
  
     let retirementText = "";
     if (selectedRetirementReason) {
-        retirementText = `<br><br>Sua despedida oficial dos gramados ocorreu devido a <strong>${selectedRetirementReason.name}</strong> (${selectedRetirementReason.desc}). `;
+        const transReasonName = getTranslatedRetirementReasonName(selectedRetirementReason.name);
+        const transReasonDesc = getTranslatedRetirementDesc(selectedRetirementReason.name, selectedRetirementReason.desc, currentLang);
+        retirementText = template.retirementText
+            .replace("{reasonName}", transReasonName)
+            .replace("{reasonDesc}", transReasonDesc);
     }
 
-    const story = `${clubStory}
-    ${internationalStory}
-    ${statsStory}
-    ${awardsStory}
-    ${retirementText}<br>
-    Você encerrou a sua gloriosa carreira no imponente <strong>${finalTeamObj.team.name}</strong>. Nos livros de história do futebol mundial, você ficará eternizado como uma verdadeira lenda viva, acumulando um recorde incrível de <strong>${totalLeaguesWon} Ligas Nacionais</strong>, <strong>${totalCupsWon} Copas Nacionais</strong>, <strong>${totalContinentalsWon} Torneios Continentais</strong>, <strong>${totalIntercontinentalsWon} Copas Intercontinentais</strong> e <strong>${totalWorldClubCupsWon} Mundiais de Clubes da FIFA</strong>. Seus atributos finais refletem o auge de sua evolução técnica: ${speedAttrName} ${selectedSpeed.name.split(" ")[0]}, ${finishingAttrName} ${selectedFinishing.name.split(" ")[0]}, ${dribblingAttrName} ${selectedDribbling.name.split(" ")[0]}, Passe ${selectedPassing.name.split(" ")[0]}, Força Física ${selectedStrength.name.split(" ")[0]} e Defesa ${selectedDefending.name.split(" ")[0]}. Um verdadeiro imortal do esporte!`;
+    let epilogueStory = template.epilogueText
+        .replace("{finalTeam}", finalTeamObj.team.name)
+        .replace("{leagues}", totalLeaguesWon)
+        .replace("{cups}", totalCupsWon)
+        .replace("{continentals}", totalContinentalsWon)
+        .replace("{intercontinentals}", totalIntercontinentalsWon)
+        .replace("{worldClubCups}", totalWorldClubCupsWon)
+        .replace("{speedName}", speedAttrName)
+        .replace("{speedVal}", selectedSpeed.name.split(" ")[0])
+        .replace("{finishingName}", finishingAttrName)
+        .replace("{finishingVal}", selectedFinishing.name.split(" ")[0])
+        .replace("{dribblingName}", dribblingAttrName)
+        .replace("{dribblingVal}", selectedDribbling.name.split(" ")[0])
+        .replace("{passingVal}", selectedPassing.name.split(" ")[0])
+        .replace("{strengthVal}", selectedStrength.name.split(" ")[0])
+        .replace("{defendingVal}", selectedDefending.name.split(" ")[0]);
+
+    const story = `${clubStory}${internationalStory}${statsStory}${awardsStory}${retirementText}${epilogueStory}`;
     
     destinyStory.innerHTML = story;
 
@@ -2077,12 +2497,13 @@ function showFinalJourney() {
         const clubCrest = getClubCrestEmoji(lastClubName);
         
         // Position Abbreviation
-        const posMap = {
-            "Goleiro": "GL", "Zagueiro": "ZAG", "Lateral Esquerdo": "LE", "Lateral Direito": "LD",
-            "Volante": "VOL", "Meio-Campo": "MC", "Meia-Armador": "MEI", "Ponta Esquerda": "PE",
-            "Ponta Direita": "PD", "Centroavante": "ATA"
+        const posKeyMap = {
+            "Goleiro": "posGL", "Zagueiro": "posZAG", "Lateral Esquerdo": "posLE", "Lateral Direito": "posLD",
+            "Volante": "posVOL", "Meio-Campo": "posMC", "Meia-Armador": "posMEI", "Ponta Esquerda": "posPE",
+            "Ponta Direita": "posPD", "Centroavante": "posATA"
         };
-        const posAbbr = posMap[selectedPosition.name] || "CRA";
+        const posKey = posKeyMap[selectedPosition.name] || "posCRA";
+        const posAbbr = translate(posKey, "CRA");
         
         // Card Rarity Class
         let rarityClass = "card-bronze";
@@ -2101,17 +2522,29 @@ function showFinalJourney() {
         // Trophies Badges inside the card
         let totalClubTrophies = totalLeaguesWon + totalCupsWon + totalContinentalsWon + totalIntercontinentalsWon + totalWorldClubCupsWon;
         let badgesHtml = "";
+        
+        const titleWc = currentLang === 'pt' ? 'Copa do Mundo' : currentLang === 'en' ? 'World Cup' : currentLang === 'es' ? 'Copa del Mundo' : currentLang === 'ja' ? 'ワールドカップ' : '世界杯';
+        const titleBdor = currentLang === 'pt' ? 'Bola de Ouro' : currentLang === 'en' ? 'Ballon d\'Or' : currentLang === 'es' ? 'Balón de Oro' : currentLang === 'ja' ? 'バロンドール' : '金球奖';
+        const titleClubTr = currentLang === 'pt' ? 'Títulos por Clubes' : currentLang === 'en' ? 'Club Trophies' : currentLang === 'es' ? 'Títulos de Clubes' : currentLang === 'ja' ? 'クラブタイトル数' : '俱乐部冠军数';
+
         if (ganhouCopaMundo && titulosCopaMundoCount > 0) {
-            badgesHtml += `<div class="fut-card-trophy-badge" title="Copa do Mundo">🏆 <span>${titulosCopaMundoCount}</span></div>`;
+            badgesHtml += `<div class="fut-card-trophy-badge" title="${titleWc}">🏆 <span>${titulosCopaMundoCount}</span></div>`;
         }
         if (ganhouBolaDeOuro && bolaDeOuroCount > 0) {
-            badgesHtml += `<div class="fut-card-trophy-badge" title="Bola de Ouro">⭐ <span>${bolaDeOuroCount}</span></div>`;
+            badgesHtml += `<div class="fut-card-trophy-badge" title="${titleBdor}">⭐ <span>${bolaDeOuroCount}</span></div>`;
         }
         if (totalClubTrophies > 0) {
-            badgesHtml += `<div class="fut-card-trophy-badge" title="Títulos por Clubes">👑 <span>${totalClubTrophies}</span></div>`;
+            badgesHtml += `<div class="fut-card-trophy-badge" title="${titleClubTr}">👑 <span>${totalClubTrophies}</span></div>`;
         }
         
         const avatarEmoji = getFUTAvatarEmoji();
+        const placeholderName = currentLang === 'pt' ? 'SEU NOME' : currentLang === 'en' ? 'YOUR NAME' : currentLang === 'es' ? 'TU NOMBRE' : currentLang === 'ja' ? 'あなたの名前' : '你的名字';
+        const insiraName = currentLang === 'pt' ? 'INSIRA SEU NOME' : currentLang === 'en' ? 'ENTER YOUR NAME' : currentLang === 'es' ? 'INGRESA TU NOMBRE' : currentLang === 'ja' ? '名前を入力してください' : '输入你的名字';
+
+        let displayCardName = playerCardName;
+        if (displayCardName === "INSIRA SEU NOME") {
+            displayCardName = placeholderName;
+        }
         
         cardContainer.innerHTML = `
             <div class="fut-card-container ${rarityClass}">
@@ -2131,7 +2564,7 @@ function showFinalJourney() {
                     </div>
                     
                     <!-- Player Name (Editable Input) -->
-                    <input type="text" class="fut-card-name-input" id="futCardNameInput" value="${playerCardName}" placeholder="SEU NOME" maxlength="14" autocomplete="off" spellcheck="false" />
+                    <input type="text" class="fut-card-name-input" id="futCardNameInput" value="${displayCardName}" placeholder="${placeholderName}" maxlength="14" autocomplete="off" spellcheck="false" />
                     
                     <!-- 6 Stats Columns -->
                     <div class="fut-card-stats">
@@ -2170,7 +2603,7 @@ function showFinalJourney() {
                     
                     <!-- Trophies Badges -->
                     <div class="fut-card-trophies">
-                        ${badgesHtml || '<div class="fut-card-trophy-badge" title="Títulos">⚽ <span>0</span></div>'}
+                        ${badgesHtml || `<div class="fut-card-trophy-badge" title="${titleClubTr}">⚽ <span>0</span></div>`}
                     </div>
                 </div>
             </div>
@@ -2183,13 +2616,13 @@ function showFinalJourney() {
                 playerCardName = e.target.value.toUpperCase();
             });
             nameInput.addEventListener("focus", (e) => {
-                if (e.target.value === "INSIRA SEU NOME") {
+                if (e.target.value === placeholderName || e.target.value === "INSIRA SEU NOME" || e.target.value === insiraName) {
                     e.target.value = "";
                 }
             });
             nameInput.addEventListener("blur", (e) => {
                 if (e.target.value.trim() === "") {
-                    e.target.value = "INSIRA SEU NOME";
+                    e.target.value = placeholderName;
                     playerCardName = "INSIRA SEU NOME";
                 }
             });
@@ -3362,9 +3795,9 @@ function handleCareerSubStepResult(winner) {
                     setTimeout(() => { spinWheel(); }, 2000);
                 }
             } else {
-                upgradePlayerAttribute(winner.key);
+                const upgradeMsg = upgradePlayerAttribute(winner.key);
                 remainingAttributeImprovements--;
-                statusText.innerText = `Evolução em: ${winner.name}! Nível subiu!`;
+                statusText.innerText = `Evolução: ${upgradeMsg}! Nível subiu!`;
                 
                 if (remainingAttributeImprovements > 0) {
                     queueTransition(() => { startCareerSubStep(); });
@@ -3812,10 +4245,65 @@ function upgradePlayerAttribute(attributeKey) {
             case "defending": selectedDefending = nextAttrObj; break;
         }
         
+        // Atualiza a caixa de atributos na tela
         updateResultBox(boxId, `${nextAttrObj.name} (${nextAttrObj.rarity})`, [nextAttrObj.color, "#090618"]);
         triggerUpgradePulse(boxId);
+        
+        // Extrai apenas os números dos níveis (ex: "5/10 - Bom" vira "5")
+        const currentLevel = currentAttrObj.name.split("/")[0];
+        const nextLevel = nextAttrObj.name.split("/")[0];
+        
+        const attrNamesPt = {
+            speed: "Velocidade",
+            finishing: "Finalização",
+            dribbling: "Drible",
+            passing: "Passe",
+            strength: "Força",
+            defending: "Defesa"
+        };
+        const attrName = attrNamesPt[attributeKey] || attributeKey;
+        const upgradeMsg = `${attrName} ${currentLevel} ➔ ${nextLevel}`;
+        
+        // Dispara o Toast de evolução premium na tela com a cor de raridade correspondente
+        showUpgradeToast(upgradeMsg, nextAttrObj.color);
+        
+        return upgradeMsg;
     }
+    return "";
 }
+
+// Premium Floating Evolution Notification Toast
+function showUpgradeToast(message, color) {
+    const existingToast = document.querySelector(".evolution-toast");
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    const toast = document.createElement("div");
+    toast.className = "evolution-toast";
+    toast.innerHTML = `
+        <div class="toast-icon">⚡</div>
+        <div class="toast-content">
+            <div class="toast-title">Atributo Melhorou</div>
+            <div class="toast-message">${message}</div>
+        </div>
+    `;
+    
+    // Aplica a cor de raridade dinamicamente na borda e no brilho (glow) do toast
+    toast.style.borderColor = color;
+    toast.style.boxShadow = `0 20px 50px rgba(0, 0, 0, 0.85), 0 0 25px ${color}50`;
+    
+    document.body.appendChild(toast);
+    
+    // Inicia a saída suave do toast após 3 segundos
+    setTimeout(() => {
+        toast.classList.add("toast-fade-out");
+        setTimeout(() => {
+            toast.remove();
+        }, 400);
+    }, 3000);
+}
+
 
 function triggerUpgradePulse(boxId) {
     const box = document.getElementById(boxId);
@@ -3906,37 +4394,58 @@ function appendTimelineCard(record, index) {
     const cupName = getDomesticCupName(record.league);
     const contName = record.continentalTournament || getContinentalTournamentName(record.league);
     
+    // Localized terms for achievements
+    const tLeague = currentLang === 'pt' ? 'Liga' : currentLang === 'en' ? 'League' : currentLang === 'es' ? 'Liga' : currentLang === 'ja' ? 'リーグ' : '联赛';
+    const tInter = currentLang === 'pt' ? 'Intercontinental' : currentLang === 'en' ? 'Intercontinental' : currentLang === 'es' ? 'Intercontinental' : currentLang === 'ja' ? 'インターコンチネンタル' : '洲际杯';
+    const tWorld = currentLang === 'pt' ? 'Mundial' : currentLang === 'en' ? 'World Cup' : currentLang === 'es' ? 'Mundial' : currentLang === 'ja' ? '世界一' : '世俱杯';
+    const tNone = currentLang === 'pt' ? 'Nenhum título coletivo' : currentLang === 'en' ? 'No collective titles' : currentLang === 'es' ? 'Sin títulos colectivos' : currentLang === 'ja' ? '獲得タイトルなし' : '无集体荣誉';
+    const tEvol = currentLang === 'pt' ? (record.numImproved === 1 ? 'evolução' : 'evoluções') : currentLang === 'en' ? (record.numImproved === 1 ? 'upgrade' : 'upgrades') : currentLang === 'es' ? (record.numImproved === 1 ? 'evolución' : 'evoluciones') : currentLang === 'ja' ? '能力向上' : '次属性提升';
+    const tNoEvol = currentLang === 'pt' ? 'Sem evoluções' : currentLang === 'en' ? 'No upgrades' : currentLang === 'es' ? 'Sin evoluciones' : currentLang === 'ja' ? '能力向上なし' : '无属性提升';
+    const tYear = record.years === 1 ? (currentLang === 'ja' || currentLang === 'zh' ? '年' : currentLang === 'en' ? 'year' : 'ano') : (currentLang === 'ja' || currentLang === 'zh' ? '年' : currentLang === 'en' ? 'years' : 'anos');
+    
+    // Translate cup name if necessary
+    let translatedCupName = cupName.split(" ")[0];
+    if (currentLang === "en") {
+        translatedCupName = cupName.includes("Copa do") ? cupName.replace("Copa do ", "") + " Cup" : cupName.split(" ")[0];
+    } else if (currentLang === "ja") {
+        translatedCupName = cupName === "Copa do Brasil" ? "ブラジル杯" : "カップ戦";
+    } else if (currentLang === "zh") {
+        translatedCupName = cupName === "Copa do Brasil" ? "巴西杯" : "杯赛";
+    }
+    
+    let translatedContName = translateContinentalTournamentName(contName, currentLang);
+    const shortContName = translatedContName.replace("UEFA ", "").replace("Copa ", "").replace(" League", "");
+
     let achievements = [];
-    if (record.wonLeague) achievements.push(`${record.leagueTitles}x Liga`);
-    if (record.wonCup) achievements.push(`${record.cupTitles}x ${cupName.split(" ")[0]}`);
+    if (record.wonLeague) achievements.push(`${record.leagueTitles}x ${tLeague}`);
+    if (record.wonCup) achievements.push(`${record.cupTitles}x ${translatedCupName}`);
     if (record.wonContinental) {
-        const shortContName = contName.replace("UEFA ", "").replace("Copa ", "").replace(" League", "");
         achievements.push(`${record.continentalTitles}x ${shortContName}`);
     }
     if (record.wonIntercontinental) {
-        achievements.push(`${record.intercontinentalTitles}x Intercontinental 🌐`);
+        achievements.push(`${record.intercontinentalTitles}x ${tInter} 🌐`);
     }
     if (record.wonWorldClubCup) {
-        achievements.push(`${record.worldClubCupTitles}x Mundial 👑`);
+        achievements.push(`${record.worldClubCupTitles}x ${tWorld} 👑`);
     }
     
     const achievementText = achievements.length > 0 
         ? `🏆 ${achievements.join(", ")}` 
-        : "Nenhum título coletivo";
+        : tNone;
     const achievementClass = achievements.length > 0 ? "timeline-achievement" : "timeline-achievement empty";
     
     const evolutionText = record.improvedAttributes
-        ? `📈 ${record.numImproved} ${record.numImproved === 1 ? 'evolução' : 'evoluções'}`
-        : "Sem evoluções";
+        ? `📈 ${record.numImproved} ${tEvol}`
+        : tNoEvol;
     const evolutionClass = record.improvedAttributes ? "timeline-evolution" : "timeline-evolution empty";
     
     card.innerHTML = `
         <div class="timeline-card-header">
-            <span class="timeline-club-name" style="color: ${activeLeagueObj.color}">${record.team.name}</span>
-            <span class="timeline-club-years">${record.years} ${record.years === 1 ? 'ano' : 'anos'}</span>
+            <span class="timeline-club-name" style="color: ${activeLeagueObj.color}">${getClubCrestEmoji(record.team.name)} ${record.team.name}</span>
+            <span class="timeline-club-years">${record.years} ${tYear}</span>
         </div>
         <div class="timeline-card-body">
-            <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-bottom: 2px;">${record.league}</div>
+            <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-bottom: 2px;">${translateTerm("continents", record.league) || record.league}</div>
             <div class="${achievementClass}">${achievementText}</div>
             <div class="${evolutionClass}">${evolutionText}</div>
         </div>
@@ -3948,6 +4457,22 @@ function appendTimelineCard(record, index) {
     timelineContainer.scrollTo({
         top: timelineContainer.scrollHeight,
         behavior: 'smooth'
+    });
+}
+
+function rebuildTimeline() {
+    const timelineContainer = document.getElementById("timelineContainer");
+    if (!timelineContainer) return;
+    
+    timelineContainer.innerHTML = "";
+    
+    if (careerHistory.length === 0) {
+        timelineContainer.innerHTML = `<div class="timeline-placeholder">${translate("timelinePlaceholder")}</div>`;
+        return;
+    }
+    
+    careerHistory.forEach((record, index) => {
+        appendTimelineCard(record, index);
     });
 }
 
@@ -4112,35 +4637,7 @@ tabBtns.forEach(btn => {
     });
 });
 
-// Initialize Modal Tabs Click Listeners & Navigation
-const modalTabBtns = document.querySelectorAll(".modal-tab-btn");
-const modalTabContents = document.querySelectorAll(".modal-tab-content");
 
-modalTabBtns.forEach(btn => {
-    btn.addEventListener("click", () => {
-        const tabId = btn.getAttribute("data-modal-tab");
-        switchModalTab(tabId);
-    });
-});
-
-function switchModalTab(tabId) {
-    modalTabBtns.forEach(b => {
-        if (b.getAttribute("data-modal-tab") === tabId) {
-            b.classList.add("active");
-        } else {
-            b.classList.remove("active");
-        }
-    });
-    
-    modalTabContents.forEach(content => {
-        const targetId = tabId === "modal-bio" ? "modalContentBio" : "modalContentTrophies";
-        if (content.id === targetId) {
-            content.classList.remove("hidden");
-        } else {
-            content.classList.add("hidden");
-        }
-    });
-}
 
 function switchTab(tabId) {
     tabBtns.forEach(b => {
@@ -4177,6 +4674,856 @@ function updateTableVisibility() {
     }
 }
 
+// ==========================================
+// INTERNATIONALIZATION (i18n) AUXILIARY FUNCTIONS
+// ==========================================
+
+function getTranslatedCountryDesc(countryName, lang) {
+    if (lang === "pt") {
+        const country = countryData[selectedContinent].find(c => c.name === countryName);
+        return country ? country.desc : "";
+    }
+    // Traduções compactas de alta qualidade de descrições dos países
+    const countryDescriptions = {
+        "Nigéria": {
+            en: "a land known for its vibrant energy, Nollywood film market, and rich culture of over 250 ethnic groups",
+            es: "una tierra conocida por su energía vibrante, el mercado de Nollywood y una rica cultura de más de 250 grupos étnicos",
+            ja: "活気に満ちたエネルギー、ノリウッド映画市場、そして250以上の民族グループによる豊かな文化で知られる土地",
+            zh: "一个以充满活力、诺莱坞电影市场以及拥有250多个民族的丰富文化而闻名遐迩的国家"
+        },
+        "Etiópia": {
+            en: "one of the oldest independent nations on Earth, with towering mountain landscapes and rich coffee traditions",
+            es: "una de las naciones independientes más antiguas de la Tierra, con imponentes paisajes montañosos y una rica tradición cafetera",
+            ja: "地球上で最も古い独立国の一つであり、そびえ立つ山の風景と豊かなコーヒーの伝統を持つ",
+            zh: "地球上最古老的独立国家之一，拥有壮丽的山地景观和深厚的咖啡传统"
+        },
+        "Egito": {
+            en: "the land of the Pharaohs, home to monumental ancient pyramids, sacred temples, and cut by the historic Nile River",
+            es: "la tierra de los faraones, hogar de pirámides monumentales milenarias, templos sagrados y atravesada por el histórico río Nilo",
+            ja: "ファラオの土地であり、記念碑的な古代のピラミッドや神聖な寺院があり、歴史的なナイル川が流れる",
+            zh: "法老的土地，拥有宏伟的千年古金字塔、神圣的神庙，并被历史悠久的尼罗河穿过"
+        },
+        "R.D. Congo": {
+            en: "the green heart of the continent, with the second-largest rainforest on the planet and massive wildlife diversity",
+            es: "el corazón verde del continente, con la segunda selva tropical más grande del planeta y una enorme diversidad de vida silvestre",
+            ja: "大陸の緑豊かな心臓部であり、地球上で2番目に大きい熱帯雨林と多様な野生生物を誇る",
+            zh: "该大陆的绿色心脏，拥有地球上第二大热带雨林和极其丰富的野生动物多样性"
+        },
+        "África do Sul": {
+            en: "the rainbow nation, home to incredible cultural diversity, surf beaches, and wildlife-rich safari reserves",
+            es: "la nación del arco iris, hogar de una increíble diversidad cultural, playas de surf y reservas de safari ricas en fauna",
+            ja: "レインボーネーション（虹の国）であり、信じられないほどの文化的多様性、サーフィンビーチ、野生動物のサファリ保護区がある",
+            zh: "彩虹之国，拥有令人难以置信的文化多样性、冲浪海滩和野生动物丰富的野生动物保护区"
+        },
+        "Quênia": {
+            en: "famous for safaris in the Masai Mara savanna, stunning Rift valleys, and world-dominating running athletes",
+            es: "famoso por sus safaris en la sabana de Masai Mara, impresionantes valles del Rift y corredores que dominan el escenario mundial",
+            ja: "マサイマラのサバンナでのサファリ、見事なリフトバレー、そして世界を席巻する陸上長距離ランナーで有名",
+            zh: "以马赛马拉大草原的野生动物巡游、壮丽的裂谷以及称霸世界的长跑运动员而闻名"
+        },
+        "Estados Unidos": {
+            en: "a globally influential power, filled with iconic metropolises, colossal national parks, and a melting pot of global cultures",
+            es: "una potencia de influencia global, repleta de metrópolis icónicas, enormes parques nacionales y una mezcla de culturas de todo el mundo",
+            ja: "世界的に影響力のある大国であり、象徴的な大都市、巨大な国立公園、世界中の文化が融合する地",
+            zh: "一个具有全球影响力的超级大国，充满地标性的大都市、壮丽的国家公园和融合世界各地的多元文化"
+        },
+        "México": {
+            en: "home to mysterious Mayan and Aztec ruins, sunny Caribbean beaches, and an internationally celebrated gastronomy",
+            es: "hogar de misteriosas ruinas mayas y aztecas, playas caribeñas soleadas y una gastronomía celebrada internacionalmente",
+            ja: "神秘的なマヤやアステカの遺跡、日当たりの良いカリブ海のビーチ、世界的に有名な美食の故郷",
+            zh: "神秘的玛雅和阿兹特克遗址的所在地，拥有阳光明媚的加勒比海滩和享誉全球的国际美食"
+        },
+        "Canadá": {
+            en: "a welcoming and peaceful nation, globally known for its snowy mountains, pine forests, and turquoise lakes",
+            es: "una nación acogedora y pacífica, mundialmente conocida por sus montañas nevadas, bosques de pinos y lagos azul turquesa",
+            ja: "雪山、松林、そしてターコイズブルーの湖で世界的に知られる、温かく平和な国",
+            zh: "一个友好且和平的国家，因其白雪皑皑的山脉、茂密的松林和松石绿色的湖泊而闻名于世"
+        },
+        "Guatemala": {
+            en: "the cultural epicentre of the modern Mayan world, featuring impressive active volcanoes and colorful indigenous markets",
+            es: "el epicentro cultural del mundo maya moderno, caracterizado por impresionantes volcanes activos y coloridos mercados indígenas",
+            ja: "現代のマヤ世界の文化の中心地であり、印象的な活火山とカラフルな先住民市場が特徴",
+            zh: "现代玛雅世界的文化中心，以令人印象深刻的活火山和色彩斑斓的印第安市场为特色"
+        },
+        "Cuba": {
+            en: "a captivating and historic Caribbean island, famous for its preserved classic cars, pulsing salsa music, and tropical beaches",
+            es: "una isla caribeña cautivadora e histórica, famosa por sus autos clásicos preservados, música salsa vibrante y playas tropicales",
+            ja: "クラシックカー、活気あるサルサ音楽、熱帯ビーチで有名な、魅惑的で歴史的なカリブ海の島",
+            zh: "一座迷人且富有历史底蕴的加勒比海岛，以其保存完好的老爷车、动感的萨尔萨音乐和热带沙滩而闻名"
+        },
+        "Brasil": {
+            en: "the largest and most joyful South American nation, globally famous for its exuberant carnival, Amazon Rainforest, and gorgeous beaches",
+            es: "la nación sudamericana más grande y alegre, famosa mundialmente por su carnaval exuberante, la Selva Amazónica y playas hermosas",
+            ja: "南米最大かつ最も陽気な国であり、華やかなカーニバル、アマゾンの熱帯雨林、美しいビーチで世界的に有名",
+            zh: "南美洲最大、最热情的国家，因其狂野欢快的狂欢节、亚马逊雨林和令人惊叹的海岸风光而闻名全球"
+        },
+        "Colômbia": {
+            en: "famous for producing the world's best mild coffee, rich Andean biodiversity, and modern cities adorned with art",
+            es: "famosa por producir el mejor café suave del mundo, una rica biodiversidad andina y ciudades modernas adornadas con arte",
+            ja: "世界最高の美味しいコーヒーの生産、豊かなアンデスの生物多様性、そして芸術で飾られた近代的な都市で有名",
+            zh: "以生产世界上最好的温和咖啡、丰富的安第斯生物多样性以及充满艺术气息的现代城市而闻名"
+        },
+        "Argentina": {
+            en: "the land of passionate tango, spectacular barbecues, the vast icy Patagonia, and a fervent passion for football",
+            es: "la tierra del tango apasionado, los asados espectaculares, la inmensa Patagonia helada y una ferviente pasión por el fútbol",
+            ja: "情熱的なタンゴ、見事なバーベキュー、広大なパタゴニアの氷河、そしてサッカーへの熱狂的な情熱の土地",
+            zh: "充满激情的探戈之乡，拥有令人垂涎的烤肉、广袤冰封的巴塔哥尼亚以及对足球的狂热激情"
+        },
+        "Peru": {
+            en: "cradle of the Inca Empire and the mysterious sacred city of Machu Picchu in the Andes heights, besides acclaimed cuisine",
+            es: "cuna del Imperio Inca y la misteriosa ciudad sagrada de Machu Picchu en las alturas de los Andes, además de una aclamada gastronomía",
+            ja: "インカ帝国の発祥地であり、アンデス山脈の高地にある神秘的な聖なる都市マチュピチュがあり、世界的に評価の高い美食を誇る",
+            zh: "印加帝国的摇篮，拥有安第斯山脉高处神秘的圣城马丘比丘，以及享誉世界的当地美食"
+        },
+        "Venezuela": {
+            en: "home to incredible untouched natural beauties, including Angel Falls, the highest waterfall in the world in the rainforest",
+            es: "hogar de increíbles bellezas naturales vírgenes, incluido el Salto Ángel, la cascada más alta del mundo en la selva tropical",
+            ja: "熱帯雨林の中にある世界で最も高い滝であるエンジェルフォールを含む、信じられないほどの未開の自然美がある地",
+            zh: "拥有令人难以置信的原始自然风光，包括位于热带雨林中世界上最高的瀑布——安赫尔瀑布"
+        },
+        "Chile": {
+            en: "a narrow and fascinating country, stretching from the arid sands of the Atacama Desert to the southern glaciers of Patagonia",
+            es: "un país estrecho y fascinante, que se extiende desde las arenas áridas del desierto de Atacama hasta los glaciares del sur de la Patagonia",
+            ja: "アタカマ砂漠の乾燥した砂からパタゴニアの南部の氷河まで広がる、細長く魅力的な国",
+            zh: "一个狭长而迷人的国家，从阿塔卡马沙漠的荒凉沙滩一直延伸到巴塔哥尼亚的南部冰川"
+        },
+        "Índia": {
+            en: "an unforgettable explosion of colors, deep spirituality, traditionalist festivals, aromatic spices, and the iconic Taj Mahal",
+            es: "una explosión inolvidable de colores, espiritualidad profunda, festivales tradicionales, especias aromáticas y el icónico Taj Mahal",
+            ja: "色、深い精神性、伝統的な祭り、芳香豊かなスパイス、そして象徴的なタージマハルの忘れられない融合",
+            zh: "令人难忘的色彩风暴、深邃的精神信仰、传统节日、芳香的香料以及标志性的泰姬陵"
+        },
+        "China": {
+            en: "one of the oldest continuous civilizations in the world, uniting the historic Great Wall with futuristic skyscrapers",
+            es: "una de las civilizaciones continuas más antiguas del mundo, que une la histórica Gran Muralla con rascacielos futuristas",
+            ja: "世界で最も古い連続した文明の一つであり、歴史的な万里の長城と近未来的な超高層ビルが融合する国",
+            zh: "世界上最古老的连续文明之一，将历史悠久的万里长城与科幻未来的摩天大楼完美融合"
+        },
+        "Indonésia": {
+            en: "a vast archipelago formed by more than 17,000 volcanic islands, dense rainforests, and exotic beaches of Bali",
+            es: "un vasto archipiélago formado por más de 17,000 islas volcánicas, densas selvas tropicales y las exóticas playas de Bali",
+            ja: "17,000以上の火山島、密集した熱帯雨林、バリのエキゾチックなビーチで構成される広大な群島",
+            zh: "由17000多个火山岛屿、茂密的雨林以及巴厘岛异国情调的海滩组成的庞大群岛国家"
+        },
+        "Paquistão": {
+            en: "land of colossal mountains of the Himalaya and K2 range, rich heritage of hospitality, and ancient fertile valleys",
+            es: "tierra de montañas colosales del Himalaya y la cordillera K2, una rica herencia de hospitalidad y antiguos valles fértiles",
+            ja: "ヒマラヤ山脈とK2の巨大な山々、温かいもてなしの豊かな伝統、そして古代の肥沃な谷の土地",
+            zh: "拥有喜马拉雅山脉和K2峰等巍峨雪山、淳朴好客的文化传统以及古老肥沃山谷的国度"
+        },
+        "Bangladesh": {
+            en: "a green plain cut by colossal rivers, famous for textile production and for sheltering the Bengal tiger",
+            es: "una llanura verde atravesada por ríos colosales, famosa por la producción textil y por albergar al tigre de Bengala",
+            ja: "巨大な川が流れる緑豊かな平野であり、繊維生産とベンガルトラの生息地として有名",
+            zh: "被巨川大河纵横交错的葱郁平原，以纺织业发达以及作为孟加拉虎的栖息地而闻名"
+        },
+        "Japão": {
+            en: "where the historical discipline of samurai and ancient Buddhist temples integrate with Tokyo's neon, anime, and high technology",
+            es: "donde la disciplina histórica de los samuráis y los antiguos templos budistas se integran con el neón de Tokio, el anime y la alta tecnología",
+            ja: "サムライの歴史的規律と古代の仏教寺院が、東京のネオン、アニメ、先端技術と融合する国",
+            zh: "在这里，武士的历史底蕴与古老佛教寺庙同东京的霓虹魔幻、动漫以及前沿高科技完美交织"
+        },
+        "Filipinas": {
+            en: "a paradisiacal refuge of thousands of tropical islands with hidden lagoons, ancient rice terraces, and welcoming people",
+            es: "un refugio paradisíaco de miles de islas tropicales con lagunas escondidas, antiguas terrazas de arroz y gente acogedora",
+            ja: "隠れたラグーン、古代の棚田、そして温かい人々がいる何千もの熱帯の島の楽園のような避難所",
+            zh: "由数千个热带岛屿组成的度假天堂，拥有隐秘的泻湖、古老的梯田和热情好客的居民"
+        },
+        "Arábia Saudita": {
+            en: "a desert nation of rich history and sacred Islamic heritage, famous for grand mosques, golden dunes, and futuristic development",
+            es: "una nación desértica de rica historia y sagrado patrimonio islámico, famosa por sus grandiosas mezquitas, dunas doradas y desarrollo futurista",
+            ja: "豊かな歴史と神聖なイスラムの遺産を持つ砂漠の国であり、壮大なモスク、黄金の砂丘、そして近未来的な開発で有名",
+            zh: "拥有丰富历史和神圣伊斯兰文化遗产的沙漠国家，以宏伟的清真寺、金色沙丘以及充满未来感的发展而闻名"
+        },
+        "Rússia": {
+            en: "the largest country on the planet, with outstanding contributions in literature, onion-dome architecture, and space exploration",
+            es: "el país más grande del planeta, con contribuciones destacadas en literatura, arquitectura de cúpulas de cebolla y exploración espacial",
+            ja: "地球上で最大の領土を持つ国であり、文学、玉ねぎ型ドームの建築、宇宙開発における顕著な貢献で知られる",
+            zh: "地球上面积最大的国家，在文学、洋葱头穹顶建筑以及航天探索领域做出过杰出的贡献"
+        },
+        "Alemanha": {
+            en: "European technological powerhouse, famous for its dense forests, fairytale medieval castles, and rich traditions",
+            es: "potencia tecnológica europea, famosa por sus densos bosques, castillos medievales de cuentos de hadas y ricas tradiciones",
+            ja: "ヨーロッパの技術大国であり、密集した森、おとぎ話のような中世の城、そして豊かな伝統で有名",
+            zh: "欧洲的科技与工业巨头，以茂密的森林、童话般的中世古堡以及深厚的文化传统而闻名"
+        },
+        "Reino Unido": {
+            en: "an island with history rich in royalty, imposing castles, green countryside landscapes, and massive influence on world pop music",
+            es: "una isla con una historia rica en realeza, castillos imponentes, paisajes campestres verdes e influencia en la música pop mundial",
+            ja: "王室の豊かな歴史、壮大な城、緑豊かな田園風景、そして世界のポップミュージックへの多大な影響力を持つ島",
+            zh: "一座拥有深厚皇室历史、巍峨城堡、葱郁田园风光以及对世界流行音乐产生巨大影响的岛国"
+        },
+        "França": {
+            en: "the capital of romance, high fashion, charming cafes in the streets of Paris, fine cuisine, and legendary museums like the Louvre",
+            es: "la capital del romance, la alta moda, cafés encantadores en las calles de París, alta cocina y museos legendarios como el Louvre",
+            ja: "ロマンス、オートクチュール、パリの街角の魅力的なカフェ、美食、そしてルーブルのような伝説的な美術館の都",
+            zh: "浪漫、高端时尚的代名词，拥有巴黎街头迷人的咖啡馆、精致的美食以及卢浮宫等享誉世界的传奇博物馆"
+        },
+        "Itália": {
+            en: "cradle of the Roman Empire and the artistic Renaissance, renowned for its home cuisine, Venice canals, and historic ruins",
+            es: "cuna del Imperio Romano y del Renacimiento artístico, renombrada por su cocina casera, canales de Venecia e歷史的ruinas",
+            ja: "ローマ帝国と芸術的ルネサンスの発祥地であり、家庭的な料理、ベネチアの運河、歴史的な遺跡で有名",
+            zh: "罗马帝国和艺术文艺复兴的摇篮，以家庭意式美食、威尼斯运河和波澜壮阔的历史遗迹而闻名于世"
+        },
+        "Espanha": {
+            en: "a sunny country filled with festive energy, fantastic architecture like Gaudi's, incredible beaches, and flavorful tapas",
+            es: "un país soleado repleto de energía festiva, arquitectura fantástica como la de Gaudí, playas increíbles y sabrosas tapas",
+            ja: "お祭りのエネルギー、ガウディのような幻想的な建築、素晴らしいビーチ、そして風味豊かなタパスに満ちた太陽の国",
+            zh: "一个阳光明媚、充满节日活力的国家，拥有高迪等大师的奇幻建筑、绝美的沙滩和美味的塔帕斯"
+        },
+        "Ucrânia": {
+            en: "a land of vast golden agricultural plains, rich Slavic culture, ancient golden-domed cathedrals, and folklore art",
+            es: "una tierra de vastas llanuras agrícolas doradas, rica cultura eslava, catedrales antiguas de cúpulas doradas y arte folclórico",
+            ja: "広大な黄金の農業平野、豊かなスラブ文化、古代の黄金ドームの大聖堂、そして民俗芸術の土地",
+            zh: "一片拥有广袤金色农业平原、深厚斯拉夫文化、古老金顶大教堂和丰富民间艺术的土地"
+        },
+        "Austrália": {
+            en: "an island-continent with unique exotic wildlife, perfect surf beaches, the vast Outback desert, and coral reefs",
+            es: "una isla-continente con una fauna exótica única, playas de surf perfectas, el gran desierto de Outback y arrecifes de coral",
+            ja: "ユニークでエキゾチックな野生動物、完璧なサーフィンビーチ、広大なアウトバック砂漠、そしてサンゴ礁を持つ島大陸",
+            zh: "一个拥有独特奇异野生动物、完美冲浪海滩、广袤内陆荒漠和珊瑚礁的孤立大陆国家"
+        },
+        "Papua Nova Guiné": {
+            en: "one of the most linguistically diverse countries on Earth, filled with isolated tribes and densely forested mountain ranges",
+            es: "uno de los países con mayor diversidad lingüística de la Tierra, repleto de tribus aisladas y cadenas montañosas densamente boscosas",
+            ja: "地球上で最も言語の多様性が高い国の一つであり、孤立した部族と密集した森林に覆われた山脈がある地",
+            zh: "地球上语言多样性最高的国家之一，充满与世隔绝的部落和植被茂密的崇山峻岭"
+        },
+        "Nova Zelândia": {
+            en: "famous for breathtaking volcanic landscapes, majestic glacial fjords, traditional Maori culture, and extreme adventures",
+            es: "famosa por sus impresionantes paisajes volcánicos, majestuosos fiordos glaciares, cultura tradicional maorí y aventuras extremas",
+            ja: "息をのむような火山風景、壮大な氷河のフィヨルド、伝統的なマオリ文化、そしてエクストリームアドベンチャーで有名",
+            zh: "以令人叹为观止的火山风光、雄伟的冰川峡湾、传统的毛利文化和极限运动而闻名"
+        },
+        "Fiji": {
+            en: "an idyllic archipelago with colorful lush coral reefs, warm crystal-clear waters, and legendary local hospitality",
+            es: "un archipiélago idílico con coloridos y exuberantes arrecifes de coral, aguas cálidas y cristalinas y una hospitalidad local de leyenda",
+            ja: "カラフルで豊かなサンゴ礁、温かく透明な水、そして伝説的な地元のもてなしがある牧歌的な群島",
+            zh: "一个田园诗般的群岛，拥有五彩斑斓的珊瑚礁、温暖清澈的海水和传奇般的热情民风"
+        }
+    };
+    
+    if (countryDescriptions[countryName]) {
+        return countryDescriptions[countryName][lang] || countryDescriptions[countryName]["en"] || "";
+    }
+    return "";
+}
+
+function getTranslatedHeightDesc(heightDesc, lang) {
+    if (lang === "pt") return heightDesc;
+    
+    const heightMappings = {
+        "muito baixo e extremamente ágil": {
+            en: "very short and extremely agile, low center of gravity",
+            es: "muy bajo y extremadamente ágil, bajo centro de gravedad",
+            ja: "非常に小柄で極めて俊敏、重心が低い",
+            zh: "非常矮小且极其敏捷，重心极低"
+        },
+        "estatura baixa, muito veloz e dinâmico": {
+            en: "short stature, very fast and dynamic on the pitch",
+            es: "estatura baja, muy rápido y dinámico en el campo",
+            ja: "小柄な体格、ピッチ上で非常に高速かつダイナミック",
+            zh: "矮小身材，在场上速度极快且充满活力"
+        },
+        "estatura mediana, boa flexibilidade e equilíbrio": {
+            en: "average height, good flexibility and physical balance",
+            es: "estatura mediana, buena flexibilidad y equilibrio físico",
+            ja: "平均的な身長、優れた柔軟性と身体のバランス",
+            zh: "中等身材，拥有良好的灵活性和身体平衡"
+        },
+        "estatura ideal para meias-armadores criativos": {
+            en: "ideal height for creative attacking midfielders",
+            es: "estatura ideal para mediocampistas creativos",
+            ja: "創造的な攻撃的MFに最適な理想のサイズ",
+            zh: "创意型前腰的理想身高"
+        },
+        "altura equilibrada, excelente controle de bola": {
+            en: "balanced height, excellent body and ball control",
+            es: "altura equilibrada, excelente control corporal y del balón",
+            ja: "バランスの取れた身長、優れた身体とボールのコントロール",
+            zh: "均衡的身高，极佳的身体与控球能力"
+        },
+        "estatura clássica de atacante moderno": {
+            en: "classic stature of a modern complete forward",
+            es: "estatura clásica de un delantero moderno completo",
+            ja: "現代的なコンプリートフォワードのクラシックな体格",
+            zh: "现代全能前锋的经典身材"
+        },
+        "estatura forte, excelente impulsão vertical": {
+            en: "strong build, excellent vertical jumping power",
+            es: "estatura fuerte, excelente capacidad de salto vertical",
+            ja: "強靭な体格、優れた垂直跳びの跳躍力",
+            zh: "强壮的体格，极佳的垂直弹跳能力"
+        },
+        "porte físico imponente, dominante no ar": {
+            en: "imposing physical presence, highly dominant in the air",
+            es: "presencia física imponente, muy dominante en el juego aéreo",
+            ja: "圧倒的なフィジカルプレゼンス、空中戦で非常に支配的",
+            zh: "魁梧的身材，在空中争顶时极具统治力"
+        },
+        "altura colossal, excelente alcance e força": {
+            en: "colossal height, excellent reach, physical power and presence",
+            es: "altura colosal, excelente alcance, fuerza física y presencia",
+            ja: "巨大な身長、優れたリーチ、フィジカルパワーと存在感",
+            zh: "巨人般的身高，极佳的防守范围、力量与球场威慑力"
+        },
+        "altura de gigante, muralha intransponível": {
+            en: "giant height, an absolute insurmountable wall in defense",
+            es: "altura de gigante, una muralla absoluta e infranqueable en defensa",
+            ja: "巨人のような身長、ディフェンスにおける絶対的な難攻不落の壁",
+            zh: "巨人般的身高，防线上面对对手防不胜防的铜墙铁壁"
+        }
+    };
+    
+    const cleanDesc = heightDesc.trim();
+    if (heightMappings[cleanDesc]) {
+        return heightMappings[cleanDesc][lang] || heightMappings[cleanDesc]["en"] || heightDesc;
+    }
+    return heightDesc;
+}
+
+function getTranslatedAgeDesc(ageDesc, lang) {
+    if (lang === "pt") return ageDesc;
+    
+    const ageMappings = {
+        "jovem prodígio, estreia precoce histórica": {
+            en: "young prodigy, historic precocious debut",
+            es: "joven prodigio, debut precoz histórico",
+            ja: "若き神童、歴史的な飛び級デビュー",
+            zh: "年轻神童，创造历史的超年轻首秀"
+        },
+        "subida rápida da base, grande promessa": {
+            en: "rapid rise from youth ranks, great prospect",
+            es: "rápido ascenso de la cantera, gran promesa",
+            ja: "ユースからの急速な昇格、大いなる有望株",
+            zh: "青训梯队快速提拔，备受瞩目的明日之星"
+        },
+        "idade de transição clássica, muito focado": {
+            en: "classic transition age, highly focused and prepared",
+            es: "edad de transición clásica, muy enfocado y preparado",
+            ja: "クラシックな昇格年齢、高い集中力と準備体制",
+            zh: "黄金首秀年龄，极度专注且准备充分"
+        },
+        "amadurecimento na base, físico muito pronto": {
+            en: "matured in the academy, physically ready for the pros",
+            es: "maduración en la cantera, físico muy preparado para profesionales",
+            ja: "アカデミーで成熟、プロに通用するフィジカルが完成",
+            zh: "在青训营磨砺成熟，身体素质已完全适应职业对抗"
+        },
+        "profissionalização tardia, resiliência mental": {
+            en: "late professionalization, exceptional mental resilience and drive",
+            es: "profesionalización tardía, resiliencia mental y empuje excepcional",
+            ja: "遅咲きのプロ入り、並外れた精神的レジリエンスと情熱",
+            zh: "大器晚成的职业合同，拥有非凡的坚韧意志和渴望"
+        }
+    };
+    
+    const cleanDesc = ageDesc.trim();
+    if (ageMappings[cleanDesc]) {
+        return ageMappings[cleanDesc][lang] || ageMappings[cleanDesc]["en"] || ageDesc;
+    }
+    return ageDesc;
+}
+
+function getTranslatedPositionDesc(positionName, lang) {
+    if (lang === "pt") {
+        const position = footballPositions.find(p => p.name === positionName);
+        return position ? position.desc : "";
+    }
+    
+    const positionDescriptions = {
+        "Goleiro": {
+            en: "the guardian of the goal. The last line of defense, responsible for impressive athletic saves and leading the defense from the back",
+            es: "el guardián de la portería. El último bastión defensivo, responsable de paradas atléticas impresionantes y de liderar la zaga",
+            ja: "ゴールの守護神。最後の砦であり、驚異的なアスレチックセーブと最後方からのディフェンス陣の統率を担う",
+            zh: "球门守护者。防线的最后一道关卡，负责做出惊人的高难度扑救，并从后场指挥整条防线"
+        },
+        "Zagueiro": {
+            en: "the defensive rock. An unbeatable physical and tactical defender in ground tackles and aerial play, protecting the box at all costs",
+            es: "la roca defensiva. Un defensor físico y táctico imbatible en los duelos terrestres y en el juego aéreo, protegiendo el área a toda costa",
+            ja: "守備の要石。地上戦や空中戦において無類の強さを誇る物理的・戦術的ディエンダーであり、いかなる対価を払ってもエリアを守り抜く",
+            zh: "防守磐石。在地面拦截和空中争顶中均无可匹敌的身体与战术型防守球员，不惜一切代价保护禁区"
+        },
+        "Lateral Esquerdo": {
+            en: "the motor of the left flank. Fast and disciplined, supports the attack with precise crosses and recovers quickly to defend",
+            es: "el motor del flanco izquierdo. Rápido y disciplinado, apoya el ataque con centros precisos y regresa rápidamente a defender",
+            ja: "左サイドのモーター。俊敏かつ規律正しく、正確なクロスで攻撃をサポートし、守備への素早い帰還を見せる",
+            zh: "左路发动机。速度极快且纪律性强，能送出精准的传中支持进攻，并能迅速回撤参与防守"
+        },
+        "Lateral Direito": {
+            en: "the motor of the right flank. Dominates the right wing with explosive runs, baseline crosses, and direct marking combat",
+            es: "el motor del flanco derecho. Domina la banda derecha con carreras explosivas, centros desde la línea de fondo y marca directa",
+            ja: "右サイドのモーター。爆発的なスプリント、エンドラインからのクロス、そして直接的なマンマークによる競り合いで右サイドを支配する",
+            zh: "右路发动机。以爆发力的前插、底线传中和直接的贴身防守统治整个右路"
+        },
+        "Volante": {
+            en: "the midfielder shield. Destroys the opponent's offensive play with precise tackles and organizes ball distribution from the back",
+            es: "el escudo del mediocampo. Destruye el juego ofensivo rival con entradas precisas y organiza la salida del balón desde la defensa",
+            ja: "中盤の盾。正確なタックルで相手の攻撃の芽を摘み取り、守備陣からのボールの配給を組み立てる",
+            zh: "中场铁闸。以精准的抢断摧毁对手的进攻组织，并负责梳理后场进攻的发起"
+        },
+        "Meio-Campo": {
+            en: "the game architect. Controls the match tempo, distributes short and long passes, and dictates precise transitions",
+            es: "el arquitecto del juego. Controla el ritmo del partido, distribuye pases cortos y largos y dicta transiciones precisas",
+            ja: "ゲームの建築家。試合のテンポをコントロールし、ショートパスとロングパスを配給し、正確なトランジションを決定する",
+            zh: "中场大师/节拍器。掌控比赛节奏，送出致命的长短传，组织精准的攻防转换"
+        },
+        "Meia-Armador": {
+            en: "the creative genius. The classic number 10 who sees plays nobody else does, featuring tight dribbles and sweet key passes",
+            es: "el genio creativo. El clásico número 10 que ve jugadas donde nadie más las ve, con regates cortos y asistencias precisas",
+            ja: "創造的ジーニアス。狭いスペースでのドリブルと絶妙なキーパスで、他の誰もが見逃すような展開を見出すクラシックな背番号10",
+            zh: "创意组织天才。经典的前场10号，擅长在狭小空间进行盘带并送出精妙钥匙传球，能看到旁人无法察觉的传球路线"
+        },
+        "Ponta Esquerda": {
+            en: "the left wing wizard. Ultra-fast and highly technical, cuts inside to shoot with their right foot or assists the striker",
+            es: "el mago de la banda izquierda. Ultra rápido y muy técnico, recorta hacia adentro para disparar con su pierna derecha o asiste al delantero",
+            ja: "左サイドの魔術師。極めて高速で高い技術を持ち、カットインして右足でシュートを放つか、フォワードをアシストする",
+            zh: "左路魔术师。拥有极快的爆发速度和高超技术，擅长内切用右足起脚射门或助攻中锋"
+        },
+        "Ponta Direita": {
+            en: "the right wing wizard. Dazzles defense with speed, dribbling, and runs, creating absolute panic in the opponent's area",
+            es: "el mago de la banda derecha. Deslumbra a la defensa con velocidad, regate y desborde, creando pánico absoluto en el área rival",
+            ja: "右サイドの魔術師。スピード、ドリブル、そして突破力でディフェンスを翻弄し、相手エリアに絶対的なパニックを引き起こす",
+            zh: "右路魔术师。以速度、盘带和插上突破撕裂防线，在对手禁区内制造巨大混乱"
+        },
+        "Ponta Direito": {
+            en: "the right wing wizard. Dazzles defense with speed, dribbling, and runs, creating absolute panic in the opponent's area",
+            es: "el mago de la banda derecha. Deslumbra a la defensa con velocidad, regate y desborde, creando pánico absoluto en el área rival",
+            ja: "右サイドの魔術師。スピード、ドリブル、突破力でディフェンスを翻弄し、相手エリアに絶対的なパニックを引き起こす",
+            zh: "右路魔术师。以速度、盘带和插上突破撕裂防线，在对手禁区内制造巨大混乱"
+        },
+        "Centroavante": {
+            en: "the ultimate goalscorer. The classic number 9, clinical finisher who positioning themselves perfectly to put the ball in the net",
+            es: "el goleador definitivo. El clásico número 9, definidor clínico que se posiciona perfectamente para mandar el balón a la red",
+            ja: "究極の点取り屋。決定力抜群のクラシックな背番号9であり、完璧なポジショニングからボールを網に突き刺す",
+            zh: "终极得分手。经典的正印9号，门前嗅觉极其敏锐，能通过完美跑位接球将球送入网窝"
+        }
+    };
+    
+    if (positionDescriptions[positionName]) {
+        return positionDescriptions[positionName][lang] || positionDescriptions[positionName]["en"] || "";
+    }
+    return "";
+}
+
+function getTranslatedRetirementDesc(reasonName, reasonDesc, lang) {
+    if (lang === "pt") return reasonDesc;
+    
+    const retirementDescriptions = {
+        "Dores CrÃ´nicas ðŸ¤•": {
+            en: "incessant chronic pain in the knees and joints, making the daily physical sacrifice unbearable",
+            es: "dolores crÃ³nicos incesantes en las rodillas y articulaciones, haciendo que el sacrificio fÃ­sico diario sea insoportable",
+            ja: "è†ã¨é–¢ç¯€ã®çµ¶ãˆé–“ãªã„æ…¢æ€§çš„ãªç—›ã¿ã®ãŸã‚ã«ã€æ—¥ã€…ã®è‚‰ä½“çš„ãªçŠ ç‰²ãŒè€ãˆé›£ã„ã‚‚ã®ã«ãªã£ãŸãŸã‚",
+            zh: "åŒè†å’Œå…³èŠ‚é•¿å¹´ç´¯æœˆé­å—æŒç»­æ€§çš„æ…¢æ€§ç–¼ç—›æŠ˜ç£¨ï¼Œè®©æ¯æ—¥çš„èº«ä½“ä»˜å‡ºå˜å¾—éš¾ä»¥å¿å—"
+        },
+        "LesÃ£o Grave ðŸ¥": {
+            en: "a severe ligament injury in the pre-season, accelerating the decision to hang up the boots",
+            es: "una grave lesiÃ³n de ligamento en la pretemporada, acelerando la decisiÃ³n de colgar las botas",
+            ja: "ãƒ—ãƒ¬ã‚·ãƒ¼ã‚ºãƒ³ä¸­ã®æ·±åˆ»ãªé­å¸¯ã®æ€ªæˆ‘ã«ã‚ˆã‚Šã€ã‚¹ãƒ‘ã‚¤ã‚¯ã‚’è„±ãæ±ºæ–­ã‚’æ—©ã‚ãŸãŸã‚",
+            zh: "å­£å‰èµ›ä¸­ä¸å¹¸é­é‡ä¸¥é‡çš„éŸ§å¸¦æ’•è£‚ä¼¤ç—…ï¼Œè¿«ä½¿ä½ åŠ é€Ÿåšå‡ºé€€å½¹çš„å†³å®š"
+        },
+        "Escolha PrÃ³pria ðŸš¶â€â™‚ï¸": {
+            en: "a personal choice to leave at the top, wanting to enjoy free time with family while still at physical peak",
+            es: "elecciÃ³n propia de retirarse en la cima, queriendo disfrutar del tiempo libre con la familia mientras aÃºn estÃ¡ en el apogeo fÃ­sico",
+            ja: "è‚‰ä½“çš„ãªå…¨ç››æœŸã«ã‚ã‚‹ã†ã¡ã«ã€å®¶æ—ã¨ã®è‡ªç”±ãªæ™‚é–“ã‚’æ¥½ã—ã¿ãŸã„ã¨ã„ã†è‡ªç™ºçš„ãªæ±ºæ–­ã«ã‚ˆã‚‹ã‚‚ã®",
+            zh: "åœ¨èº«ä½“æœºèƒ½ä»å¤„äºŽå·…å³°æ—¶é€‰æ‹©åŠŸæˆèº«é€€ï¼Œæ¸´æœ›é™ªä¼´å®¶äººå¹¶äº«å—è½»æ¾çš„é—²æš‡æ—¶å…‰"
+        },
+        "Idade AvanÃ§ada ðŸ‘´": {
+            en: "advanced age reflecting on physical pace, preferring to give space for young talents to shine",
+            es: "edad avanzada que se refleja en el ritmo fÃ­sico, prefiriendo dar espacio para que brillen los jÃ³venes talentos",
+            ja: "å¹´é½¢ãŒè‚‰ä½“çš„ãªãƒšãƒ¼ã‚¹ã«å½±éŸ¿ã—å§‹ã‚ã€è‹¥ã„æ‰èƒ½ãŒè¼ããŸã‚ã®é“ã‚’é–‹ãã“ã¨ã‚’å„ªå…ˆã—ãŸãŸã‚",
+            zh: "é«˜é¾„å¼€å§‹å½±å“çƒåœºä¸Šçš„ç«žæŠ€èŠ‚å¥ï¼Œé€‰æ‹©ä¸»åŠ¨è®©ä½ç»™æ›´å¹´è½»çš„å¤©æ‰çƒå‘˜ä»¬"
+        },
+        "Desejo de ser Treinador ðŸ“‹": {
+            en: "a burning desire to immediately start studying to become a football manager",
+            es: "el deseo ardiente de comenzar inmediatamente los estudios para convertirse en entrenador de fÃºtbol",
+            ja: "ã‚µãƒƒã‚«ãƒ¼æŒ‡å°Žè€…ã«ãªã‚‹ãŸã‚ã®å‹‰å¼·ã‚’ã™ãã«å§‹ã‚ãŸã„ã¨ã„ã†ç†±çƒˆãªæ„æ¬²ã«ã‚ˆã‚‹ã‚‚ã®",
+            zh: "å†…å¿ƒæžåº¦æ¸´æœ›ç«‹å³å¼€å¯ä¸“ä¸šå­¦ä¹ ï¼Œä»¥å°½æ—©è½¬åž‹æˆä¸ºä¸€åèŒä¸šè¶³çƒæ•™ç»ƒ"
+        },
+        "Desgaste Mental ðŸ§ ": {
+            en: "accumulated mental wear with the heavy routine of travels, hotels, and unsustainable fan pressure",
+            es: "desgaste mental acumulado con la pesada rutina de viajes, hoteles y presiones insostenibles de la aficiÃ³n",
+            ja: "é å¾ã‚„ãƒ›ãƒ†ãƒ«ç”Ÿæ´» de éŽé…·ãªãƒ«ãƒ¼ãƒ†ã‚£ãƒ³ã€ç²¾ç¥žçš„ã«è€ãˆé›£ã„ãƒ—ãƒ¬ãƒƒã‚·ãƒ£ãƒ¼ã«ã‚ˆã‚‹ã‚¹ãƒˆãƒ¬ã‚¹ã®è“„ç©ã®ãŸã‚",
+            zh: "å¸¸å¹´å¥”æ³¢å®¢åœºæ—…é€”ã€é›†è®­é…’åº—ä»¥åŠçƒè¿·ç¾¤ä½“å¸¦æ¥çš„æ— å½¢åŽ‹åŠ›ï¼Œè®©ä½ ç§¯ç´¯äº†ä¸¥é‡çš„ç²¾ç¥žç–²æƒ«"
+        }
+    };
+    
+    if (retirementDescriptions[reasonName]) {
+        return retirementDescriptions[reasonName][lang] || retirementDescriptions[reasonName]["en"] || reasonDesc;
+    }
+    return reasonDesc;
+}
+
+function translateContinentalTournamentName(contName, lang) {
+    if (lang === "pt") return contName;
+    
+    const tournamentTranslations = {
+        "Copa Libertadores": { en: "Copa Libertadores", es: "Copa Libertadores", ja: "コパ・リベルタドーレス", zh: "南美解放者杯" },
+        "Copa Sul-Americana": { en: "Copa Sudamericana", es: "Copa Sudamericana", ja: "コパ・スダメリカーナ", zh: "南美杯" },
+        "UEFA Champions League": { en: "UEFA Champions League", es: "UEFA Champions League", ja: "UEFAチャンピオンズリーグ", zh: "欧洲冠军联赛" },
+        "UEFA Europa League": { en: "UEFA Europa League", es: "UEFA Europa League", ja: "UEFAヨーロッパリーグ", zh: "欧足联欧洲联赛" },
+        "UEFA Conference League": { en: "UEFA Conference League", es: "UEFA Conference League", ja: "UEFAカンファレンスリーグ", zh: "欧足联欧洲协会联赛" },
+        "Concacaf Champions Cup": { en: "Concacaf Champions Cup", es: "Copa de Campeones de la Concacaf", ja: "CONCACAFチャンピオンズカップ", zh: "中北美及加勒比海冠军杯" },
+        "Leagues Cup": { en: "Leagues Cup", es: "Leagues Cup", ja: "リーグスカップ", zh: "联盟杯" },
+        "CAF Champions League": { en: "CAF Champions League", es: "Liga de Campeones de la CAF", ja: "CAFチャンピオンズリーグ", zh: "非洲冠军联赛" },
+        "AFC Champions League": { en: "AFC Champions League", es: "Liga de Campeones de la AFC", ja: "AFCチャンピオンズリーグ", zh: "亚足联冠军联赛" },
+        "OFC Champions League": { en: "OFC Champions League", es: "Liga de Campeones de la OFC", ja: "OFCチャンピオンズリーグ", zh: "大洋洲冠军联赛" },
+        "Copa América": { en: "Copa America", es: "Copa América", ja: "コパ・アメリカ", zh: "美洲杯" },
+        "Eurocopa": { en: "UEFA Euro", es: "Eurocopa", ja: "ユーロ", zh: "欧洲杯" },
+        "Copa Ouro": { en: "CONCACAF Gold Cup", es: "Copa Oro", ja: "ゴールドカップ", zh: "美金杯" },
+        "Copa das Nações Africanas": { en: "Africa Cup of Nations", es: "Copa Africana de Naciones", ja: "アフリカネイションズカップ", zh: "非洲国家杯" },
+        "Copa da Ásia": { en: "AFC Asian Cup", es: "Copa Asiática", ja: "アジアカップ", zh: "亚洲杯" },
+        "Copa das Nações da OFC": { en: "OFC Nations Cup", es: "Copa de las Naciones de la OFC", ja: "OFCネイションズカップ", zh: "大洋洲国家杯" }
+    };
+    
+    // Busca aproximada caso o nome contenha partes
+    for (const [key, mapping] of Object.entries(tournamentTranslations)) {
+        if (contName.includes(key)) {
+            return mapping[lang] || mapping["en"] || contName;
+        }
+    }
+    return contName;
+}
+
+function translateContinentalSelectionTournamentName() {
+    const contName = getContinentalSelectionTournamentName();
+    return translateContinentalTournamentName(contName, currentLang);
+}
+
+// ==========================================
+// INTERNATIONALIZATION (i18n) IMPLEMENTATION
+// ==========================================
+
+const stepSubtitles = {
+    pt: [
+        "Etapa 1: Gire a roleta para descobrir em qual continente você irá nascer!",
+        "Etapa 2: Gire a roleta para descobrir o seu país de nascimento!",
+        "Etapa 3: Gire a roleta para descobrir a sua estatura física!",
+        "Etapa 4: Gire a roleta para descobrir a sua idade de estreia profissional!",
+        "Etapa 5: Gire a roleta para descobrir a sua posição ideal nos gramados!",
+        "Etapa 6: Gire a roleta para descobrir o seu atributo de velocidade!",
+        "Etapa 7: Gire a roleta para descobrir o seu atributo de finalização!",
+        "Etapa 8: Gire a roleta para descobrir o seu atributo de drible!",
+        "Etapa 9: Gire a roleta para descobrir o seu atributo de passe!",
+        "Etapa 10: Gire a roleta para descobrir o seu atributo de força física!",
+        "Etapa 11: Gire a roleta para descobrir o seu atributo de defesa!",
+        "Etapa 12: Gire a roleta para descobrir quantas temporadas durará sua carreira!",
+        "Etapa 13: Gire a roleta para descobrir quantos clubes você defenderá!",
+        "Etapa 14: Carreira em andamento! Acompanhe seus sorteios de clubes e seleção!"
+    ],
+    en: [
+        "Step 1: Spin the wheel to discover which continent you will be born in!",
+        "Step 2: Spin the wheel to discover your birth country!",
+        "Step 3: Spin the wheel to discover your physical height!",
+        "Step 4: Spin the wheel to discover your professional debut age!",
+        "Step 5: Spin the wheel to discover your playing position!",
+        "Step 6: Spin the wheel to discover your speed attribute!",
+        "Step 7: Spin the wheel to discover your finishing attribute!",
+        "Step 8: Spin the wheel to discover your dribbling attribute!",
+        "Step 9: Spin the wheel to discover your passing attribute!",
+        "Step 10: Spin the wheel to discover your physical strength!",
+        "Step 11: Spin the wheel to discover your defending attribute!",
+        "Step 12: Spin the wheel to discover how many seasons you will play!",
+        "Step 13: Spin the wheel to discover how many clubs you will defend!",
+        "Step 14: Career in progress! Follow your club contract drafts and international caps!"
+    ],
+    es: [
+        "Etapa 1: ¡Gira la ruleta para descubrir en qué continente nacerás!",
+        "Etapa 2: ¡Gira la ruleta para descubrir tu país de nacimiento!",
+        "Etapa 3: ¡Gira la ruleta para descubrir tu estatura física!",
+        "Etapa 4: ¡Gira la ruleta para descubrir tu edad de debut profesional!",
+        "Etapa 5: ¡Gira la ruleta para descubrir tu posición ideal en el campo!",
+        "Etapa 6: ¡Gira la ruleta para descubrir tu atributo de velocidad!",
+        "Etapa 7: ¡Gira la ruleta para descubrir tu atributo de finalización!",
+        "Etapa 8: ¡Gira la ruleta para descubrir tu atributo de regate!",
+        "Etapa 9: ¡Gira la ruleta para descubrir tu atributo de pase!",
+        "Etapa 10: ¡Gira la ruleta para descubrir tu fuerza física!",
+        "Etapa 11: ¡Gira la ruleta para descubrir tu atributo de defensa!",
+        "Etapa 12: ¡Gira la ruleta para descubrir cuántas temporadas durará tu carrera!",
+        "Etapa 13: ¡Gira la ruleta para descubrir cuántos clubes defenderás!",
+        "Etapa 14: ¡Carrera en curso! Sigue tus sorteos de clubes y selección nacional!"
+    ],
+    ja: [
+        "ステップ 1: ルーレットを回して、生まれる大陸を決定しましょう！",
+        "ステップ 2: ルーレットを回して、あなたの出身国を決定しましょう！",
+        "ステップ 3: ルーレットを回して、あなたの身長を決定しましょう！",
+        "ステップ 4: ルーレットを回して、あなたのプロデビュー年齢を決定しましょう！",
+        "ステップ 5: ルーレットを回して、ピッチ上でのポジションを決定しましょう！",
+        "ステップ 6: ルーレットを回して、スピード属性を決定しましょう！",
+        "ステップ 7: ルーレットを回して、決定力属性を決定しましょう！",
+        "ステップ 8: ルーレットを回して、ドリブル属性を決定しましょう！",
+        "ステップ 9: ルーレットを回して、パス属性を決定しましょう！",
+        "ステップ 10: ルーレットを回して、フィジカル強度の属性を決定しましょう！",
+        "ステップ 11: ルーレットを回して、ディフェンス属性を決定しましょう！",
+        "ステップ 12: ルーレットを回して、現役シーズン数を決定しましょう！",
+        "ステップ 13: ルーレットを回して、所属するクラブ数を決定しましょう！",
+        "ステップ 14: キャリア進行中！クラブ移籍のドラフトと代表戦を追いかけましょう！"
+    ],
+    zh: [
+        "步骤 1：旋转轮盘，探索你出生的洲！",
+        "步骤 2：旋转轮盘，探索你的出生国家！",
+        "步骤 3：旋转轮盘，探索你的身高！",
+        "步骤 4：旋转轮盘，探索你的职业首秀年龄！",
+        "步骤 5：旋转轮盘，探索你的场上位置！",
+        "步骤 6：旋转轮盘，探索你的速度属性！",
+        "步骤 7：旋转轮盘，探索你的射门属性！",
+        "步骤 8：旋转轮盘，探索你的盘带属性！",
+        "步骤 9：旋转轮盘，探索你的传球属性！",
+        "步骤 10：旋转轮盘，探索你的力量属性！",
+        "步骤 11：旋转轮盘，探索你的防守属性！",
+        "步骤 12：旋转轮盘，探索你的生涯赛季数！",
+        "步骤 13：旋转轮盘，探索你的所属俱乐部数！",
+        "步骤 14：生涯正在进行！关注你的俱乐部签约与国家队征程！"
+    ]
+};
+
+function initLanguageSelector() {
+    const trigger = document.getElementById("langDropdownTrigger");
+    const menu = document.getElementById("langDropdownMenu");
+    const items = document.querySelectorAll(".dropdown-item");
+    
+    if (trigger && menu) {
+        trigger.addEventListener("click", (e) => {
+            e.stopPropagation();
+            trigger.classList.toggle("open");
+            menu.classList.toggle("open");
+        });
+        
+        document.addEventListener("click", (e) => {
+            if (!trigger.contains(e.target) && !menu.contains(e.target)) {
+                trigger.classList.remove("open");
+                menu.classList.remove("open");
+            }
+        });
+    }
+    
+    items.forEach(item => {
+        if (item.getAttribute("data-lang") === currentLang) {
+            item.classList.add("active");
+        } else {
+            item.classList.remove("active");
+        }
+        
+        item.addEventListener("click", () => {
+            const newLang = item.getAttribute("data-lang");
+            if (newLang !== currentLang) {
+                currentLang = newLang;
+                localStorage.setItem("rumo_estrelato_lang", currentLang);
+                
+                items.forEach(i => i.classList.remove("active"));
+                item.classList.add("active");
+                
+                if (trigger && menu) {
+                    trigger.classList.remove("open");
+                    menu.classList.remove("open");
+                }
+                
+                applyLanguage();
+            }
+        });
+    });
+}
+
+function applyLanguage() {
+    // Sincronizar rótulos ativos do dropdown trigger (médios/longos e curtos)
+    const langNamesLong = {
+        pt: "Português",
+        en: "English",
+        es: "Español",
+        ja: "日本語",
+        zh: "简体中文"
+    };
+
+    const langNamesShort = {
+        pt: "PT",
+        en: "EN",
+        es: "ES",
+        ja: "JA",
+        zh: "ZH"
+    };
+
+    const activeLangNameLongEl = document.querySelector(".lang-name-long");
+    const activeLangNameShortEl = document.querySelector(".lang-name-short");
+    if (activeLangNameLongEl) {
+        activeLangNameLongEl.innerText = langNamesLong[currentLang] || "Português";
+    }
+    if (activeLangNameShortEl) {
+        activeLangNameShortEl.innerText = langNamesShort[currentLang] || "PT";
+    }
+
+    // 1. Traduzir elementos estáticos do HTML que possuem data-i18n
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        el.innerText = translate(key, el.innerText);
+    });
+    
+    // 2. Traduzir texto do rodapé dinamicamente
+    const footerText = document.getElementById("footer-text");
+    if (footerText) {
+        let desc = "O mais completo simulador RPG de carreira futebolística.";
+        if (currentLang === "en") desc = "The most complete football career RPG simulator.";
+        else if (currentLang === "es") desc = "El simulador RPG de carrera futbolística más completo.";
+        else if (currentLang === "ja") desc = "最も完成度の高いサッカーキャリアRPGシミュレーター。";
+        else if (currentLang === "zh") desc = "最完整的足球职业生涯RPG模拟器。";
+        
+        footerText.innerHTML = `${translate("appTitle")} &copy; 2026. ${desc}`;
+    }
+    
+    // 3. Atualizar rótulos das caixas de resultados e placeholders
+    updateResultBoxLabels();
+    
+    // 4. Atualizar textos e status dinâmicos
+    updateDynamicStatusText();
+    
+    // 5. Redesenhar a roleta com textos traduzidos
+    drawWheel();
+    
+    // 6. Se o modal final estiver aberto, regera a biografia e o card FIFA em tempo real!
+    if (currentStep === 15) {
+        showFinalJourney();
+    }
+}
+
+function updateResultBoxLabels() {
+    const boxLabelMappings = {
+        "box-continent": "boxContinent",
+        "box-country": "boxCountry",
+        "box-height": "boxHeight",
+        "box-age": "boxAge",
+        "box-position": "boxPosition",
+        "box-speed": "boxSpeed",
+        "box-finishing": "boxFinishing",
+        "box-dribbling": "boxDribbling",
+        "box-passing": "boxPassing",
+        "box-strength": "boxStrength",
+        "box-defending": "boxDefending",
+        "box-seasons": "boxSeasons",
+        "box-clubs": "boxClubs"
+    };
+    
+    for (const [id, translationKey] of Object.entries(boxLabelMappings)) {
+        const box = document.getElementById(id);
+        if (box) {
+            const label = box.querySelector(".box-label");
+            if (label) label.innerText = translate(translationKey);
+            
+            // Traduz o placeholder se for correspondente a Pendente
+            const placeholder = box.querySelector(".box-placeholder");
+            if (placeholder && placeholder.style.display !== "none") {
+                placeholder.innerText = translate("boxPlaceholderPending");
+            }
+        }
+    }
+    
+    // Update active completed boxes' values in real-time
+    if (typeof selectedContinent !== 'undefined' && selectedContinent) updateResultBoxValueOnly("box-continent", selectedContinent);
+    if (typeof selectedCountry !== 'undefined' && selectedCountry) updateResultBoxValueOnly("box-country", selectedCountry.name);
+    if (typeof selectedHeight !== 'undefined' && selectedHeight) updateResultBoxValueOnly("box-height", selectedHeight.name);
+    if (typeof selectedAge !== 'undefined' && selectedAge) updateResultBoxValueOnly("box-age", selectedAge.name);
+    if (typeof selectedPosition !== 'undefined' && selectedPosition) updateResultBoxValueOnly("box-position", selectedPosition.name);
+    if (typeof selectedSpeed !== 'undefined' && selectedSpeed) updateResultBoxValueOnly("box-speed", selectedSpeed.name);
+    if (typeof selectedFinishing !== 'undefined' && selectedFinishing) updateResultBoxValueOnly("box-finishing", selectedFinishing.name);
+    if (typeof selectedDribbling !== 'undefined' && selectedDribbling) updateResultBoxValueOnly("box-dribbling", selectedDribbling.name);
+    if (typeof selectedPassing !== 'undefined' && selectedPassing) updateResultBoxValueOnly("box-passing", selectedPassing.name);
+    if (typeof selectedStrength !== 'undefined' && selectedStrength) updateResultBoxValueOnly("box-strength", selectedStrength.name);
+    if (typeof selectedDefending !== 'undefined' && selectedDefending) updateResultBoxValueOnly("box-defending", selectedDefending.name);
+    if (typeof selectedSeasons !== 'undefined' && selectedSeasons) updateResultBoxValueOnly("box-seasons", selectedSeasons.name);
+    if (typeof selectedClubs !== 'undefined' && selectedClubs) updateResultBoxValueOnly("box-clubs", selectedClubs.name);
+    
+    // Rebuild the timeline in real-time to translate it
+    if (typeof rebuildTimeline === 'function') rebuildTimeline();
+    
+    // Atualiza o placeholder da linha do tempo da carreira
+    const timelineContainer = document.getElementById("timelineContainer");
+    if (timelineContainer && timelineContainer.querySelector(".timeline-placeholder")) {
+        timelineContainer.querySelector(".timeline-placeholder").innerText = translate("timelinePlaceholder");
+    }
+    
+    // Atualiza a tabela de referência de placeholders
+    const tablePlaceholder = document.getElementById("no-table-placeholder");
+    if (tablePlaceholder) {
+        tablePlaceholder.innerText = translate("noTablePlaceholder");
+    }
+    
+    // Atualiza cabeçalhos de tabelas ativas se estiverem visíveis
+    const rarityTableTitle = document.querySelector("#speedTableSection .table-title");
+    if (rarityTableTitle) rarityTableTitle.innerText = translate("rarityTableTitle");
+    
+    const seasonsTableTitle = document.querySelector("#seasonsTableSection .table-title");
+    if (seasonsTableTitle) seasonsTableTitle.innerText = translate("seasonsTableTitle");
+    
+    // Traduz os cabeçalhos das colunas das tabelas
+    document.querySelectorAll(".speed-rarity-table").forEach(table => {
+        const headers = table.querySelectorAll("th");
+        if (headers.length >= 2) {
+            if (table.parentElement.id === "speedTableSection") {
+                headers[0].innerText = translate("levelHeader");
+                headers[1].innerText = translate("rarityHeader");
+                headers[2].innerText = translate("chanceHeader");
+            } else {
+                headers[0].innerText = translate("seasonsHeader");
+                headers[1].innerText = translate("classificationHeader");
+            }
+        }
+    });
+}
+
+function updateDynamicStatusText() {
+    // 1. Traduzir texto do botão central
+    const btnSpan = spinBtn.querySelector("span");
+    if (btnSpan) {
+        if (spinBtn.classList.contains("btn-advance")) {
+            btnSpan.innerText = translate("btnAdvance");
+        } else if (currentStep === 15) {
+            btnSpan.innerText = translate("btnRestart");
+        } else {
+            btnSpan.innerText = translate("btnSpin");
+        }
+    }
+    
+    // 2. Se no final da carreira, desconsidera etapas intermediárias
+    if (currentStep === 15) {
+        appSubtitle.innerText = translate("statusCareerPhase");
+        return;
+    }
+    
+    // 3. Traduzir o subtítulo da etapa atual
+    if (stepSubtitles[currentLang] && stepSubtitles[currentLang][currentStep] !== undefined) {
+        appSubtitle.innerText = stepSubtitles[currentLang][currentStep];
+    } else {
+        appSubtitle.innerText = stepSubtitles["pt"][currentStep] || "";
+    }
+    
+    // 4. Traduzir o statusText (apenas se não estiver no meio do spin para manter fidelidade visual)
+    if (!isSpinning && !isWaitingToAdvance) {
+        const stepStatusMappings = {
+            0: "statusWaitingContinent",
+            1: "statusWaitingCountry",
+            2: "statusWaitingHeight",
+            3: "statusWaitingAge",
+            4: "statusWaitingPosition",
+            5: "statusWaitingSpeed",
+            6: "statusWaitingFinishing",
+            7: "statusWaitingDribbling",
+            8: "statusWaitingPassing",
+            9: "statusWaitingStrength",
+            10: "statusWaitingDefending",
+            11: "statusWaitingSeasons",
+            12: "statusWaitingClubs",
+            13: "statusCareerPhase",
+            14: "statusIntPhase"
+        };
+        
+        const statusKey = stepStatusMappings[currentStep];
+        if (statusKey) {
+            statusText.innerText = translate(statusKey);
+        }
+    }
+}
+
+// Initialize i18n and UI
+initLanguageSelector();
+applyLanguage();
+
 // Initialize
 document.getElementById("box-continent").classList.add("active-step");
-drawWheel();
